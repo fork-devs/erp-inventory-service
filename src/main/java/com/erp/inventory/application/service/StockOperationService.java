@@ -11,10 +11,16 @@ import com.erp.inventory.domain.exception.InsufficientStockException;
 import com.erp.inventory.domain.exception.SparePartNotFoundException;
 import com.erp.inventory.domain.model.MovementType;
 import com.erp.inventory.domain.model.StockLot;
+import com.erp.inventory.domain.model.SparePart;
 import com.erp.inventory.domain.model.StockMovement;
 import com.erp.inventory.domain.port.BranchRepositoryPort;
 import com.erp.inventory.domain.port.SparePartRepositoryPort;
+import com.erp.inventory.domain.event.StockLowEvent;
+import com.erp.inventory.domain.event.StockReleasedEvent;
+import com.erp.inventory.domain.event.StockReservedEvent;
+import com.erp.inventory.domain.model.StockOutboxMessage;
 import com.erp.inventory.domain.port.StockLotRepositoryPort;
+import com.erp.inventory.domain.port.StockOutboxRepositoryPort;
 import com.erp.inventory.domain.port.StockMovementRepositoryPort;
 import com.erp.inventory.domain.port.UnitOfWork;
 import com.erp.inventory.domain.valueobject.BranchId;
@@ -22,6 +28,7 @@ import com.erp.inventory.domain.valueobject.IdempotencyKey;
 import com.erp.inventory.domain.valueobject.Quantity;
 import com.erp.inventory.domain.valueobject.SparePartId;
 import com.erp.inventory.domain.valueobject.TenantId;
+import com.erp.inventory.infrastructure.messaging.DomainEventSerializer;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -57,17 +64,23 @@ public class StockOperationService implements StockOperationUseCase {
     private final StockLotRepositoryPort lotRepository;
     private final SparePartRepositoryPort sparePartRepository;
     private final BranchRepositoryPort branchRepository;
+    private final StockOutboxRepositoryPort outboxRepository;
+    private final DomainEventSerializer eventSerializer;
     private final UnitOfWork unitOfWork;
 
     public StockOperationService(StockMovementRepositoryPort movementRepository,
                                   StockLotRepositoryPort lotRepository,
                                   SparePartRepositoryPort sparePartRepository,
                                   BranchRepositoryPort branchRepository,
+                                  StockOutboxRepositoryPort outboxRepository,
+                                  DomainEventSerializer eventSerializer,
                                   UnitOfWork unitOfWork) {
         this.movementRepository = movementRepository;
         this.lotRepository = lotRepository;
         this.sparePartRepository = sparePartRepository;
         this.branchRepository = branchRepository;
+        this.outboxRepository = outboxRepository;
+        this.eventSerializer = eventSerializer;
         this.unitOfWork = unitOfWork;
     }
 
@@ -112,6 +125,7 @@ public class StockOperationService implements StockOperationUseCase {
             if (type == MovementType.OUT) {
                 consumir(lotes, qty.getValue());
                 guardarLotes(lotes);
+                avisarSiStockBajo(tenantId, partId, branchId, lotes);
             }
             return toResult(movimiento);
         });
@@ -151,6 +165,13 @@ public class StockOperationService implements StockOperationUseCase {
 
             reservar(lotes, cmd.quantity());
             guardarLotes(lotes);
+
+            StockReservedEvent evento = new StockReservedEvent(tenantId.getValue(),
+                    movimiento.getId().getValue(), partId.getValue(), branchId.getValue(),
+                    cmd.quantity(), cmd.workOrderId());
+            guardarEnBandeja(movimiento, evento);
+            avisarSiStockBajo(tenantId, partId, branchId, lotes);
+
             return toResult(movimiento);
         });
     }
@@ -175,6 +196,12 @@ public class StockOperationService implements StockOperationUseCase {
 
             liberar(lotes, cmd.quantity());
             guardarLotes(lotes);
+
+            StockReleasedEvent evento = new StockReleasedEvent(tenantId.getValue(),
+                    movimiento.getId().getValue(), partId.getValue(), branchId.getValue(),
+                    cmd.quantity(), cmd.workOrderId());
+            guardarEnBandeja(movimiento, evento);
+
             return toResult(movimiento);
         });
     }
@@ -207,6 +234,8 @@ public class StockOperationService implements StockOperationUseCase {
 
             consumirReservado(lotes, cmd.quantity());
             guardarLotes(lotes);
+            avisarSiStockBajo(tenantId, partId, branchId, lotes);
+
             return toResult(movimiento);
         });
     }
@@ -249,6 +278,52 @@ public class StockOperationService implements StockOperationUseCase {
 
         return new StockBalanceResult(sparePartId, branchId, entradas, salidas, totalReservado,
                 disponible, valorDisponible, valorReservado);
+    }
+
+    /**
+     * Guarda el evento en la BANDEJA DE SALIDA, en la MISMA transaccion que
+     * confirma el cambio de stock: o se confirman los dos, o no se confirma
+     * ninguno. Publicar el evento dentro de la transaccion de negocio es
+     * justo lo que el patron evita: el bus podria recibir un evento que la
+     * base de datos no llego a confirmar.
+     */
+    private void guardarEnBandeja(StockMovement movimiento, com.erp.inventory.domain.event.DomainEvent evento) {
+        StockOutboxMessage mensaje = StockOutboxMessage.of(
+                movimiento.getId().getValue(),
+                movimiento.getTenantId().getValue(),
+                evento.getEventId(),
+                evento.getEventType(),
+                eventSerializer.serialize(evento));
+        outboxRepository.save(mensaje);
+    }
+
+    /**
+     * Emite el aviso de stock bajo cuando el disponible queda por debajo del
+     * umbral del repuesto.
+     *
+     * <p>El aviso lleva el nivel en el momento del movimiento: un cambio de
+     * umbral posterior no reescribe la historia.
+     */
+    private void avisarSiStockBajo(TenantId tenantId, SparePartId partId, BranchId branchId,
+                                   List<StockLot> lotes) {
+        int disponible = disponibles(lotes);
+        int umbral = sparePartRepository.findById(partId, tenantId)
+                .map(SparePart::getMinStock)
+                .orElse(0);
+
+        if (disponible >= umbral) {
+            return;
+        }
+
+        StockLowEvent aviso = new StockLowEvent(tenantId.getValue(), partId.getValue(),
+                branchId.getValue(), disponible, umbral);
+        StockOutboxMessage mensaje = StockOutboxMessage.of(
+                partId.getValue(),
+                tenantId.getValue(),
+                aviso.getEventId(),
+                aviso.getEventType(),
+                eventSerializer.serialize(aviso));
+        outboxRepository.save(mensaje);
     }
 
     private StockMovement reclamar(StockMovement movimiento) {
