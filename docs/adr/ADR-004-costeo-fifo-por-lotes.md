@@ -4,6 +4,7 @@
 - **Fecha:** 2026-10-21
 - **Change:** `add-inventory-service`
 - **Ámbito:** `erp-inventory-service` y, por consecuencia, `erp-work-order-service`
+- **Copia canónica:** `erp-inventory-service/docs/adr/ADR-004-costeo-fifo-por-lotes.md` (este repositorio; los demás guardan un espejo)
 
 ## Contexto
 
