@@ -1,13 +1,17 @@
 package com.erp.inventory.infrastructure.config;
 
 import com.erp.inventory.application.service.BranchService;
+import com.erp.inventory.application.service.OutboxProcessorService;
 import com.erp.inventory.application.service.SparePartService;
 import com.erp.inventory.application.service.StockOperationService;
 import com.erp.inventory.domain.port.BranchRepositoryPort;
 import com.erp.inventory.domain.port.SparePartRepositoryPort;
+import com.erp.inventory.domain.port.EventPublisherPort;
 import com.erp.inventory.domain.port.StockLotRepositoryPort;
+import com.erp.inventory.domain.port.StockOutboxRepositoryPort;
 import com.erp.inventory.domain.port.StockMovementRepositoryPort;
 import com.erp.inventory.domain.port.UnitOfWork;
+import com.erp.inventory.infrastructure.messaging.DomainEventSerializer;
 import com.erp.inventory.infrastructure.security.JwksKeyManager;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -34,8 +38,24 @@ public class ApplicationServiceConfig {
                                                        StockLotRepositoryPort lotRepo,
                                                        SparePartRepositoryPort sparePartRepo,
                                                        BranchRepositoryPort branchRepo,
+                                                       StockOutboxRepositoryPort outboxRepo,
+                                                       DomainEventSerializer eventSerializer,
                                                        UnitOfWork unitOfWork) {
-        return new StockOperationService(movementRepo, lotRepo, sparePartRepo, branchRepo, unitOfWork);
+        return new StockOperationService(movementRepo, lotRepo, sparePartRepo, branchRepo,
+                outboxRepo, eventSerializer, unitOfWork);
+    }
+
+    /**
+     * Relay de la bandeja de salida: publica los mensajes pendientes, con
+     * reintentos de espera creciente y cola de muertos.
+     */
+    @Bean
+    public OutboxProcessorService outboxProcessorService(StockOutboxRepositoryPort outboxRepositoryPort,
+                                                         EventPublisherPort eventPublisherPort,
+                                                         UnitOfWork unitOfWork,
+                                                         @Value("${erp.stock.outbox.max-attempts:7}") int maxAttempts,
+                                                         @Value("${erp.stock.outbox.max-delay:PT24H}") java.time.Duration maxDelay) {
+        return new OutboxProcessorService(outboxRepositoryPort, eventPublisherPort, unitOfWork, maxAttempts, maxDelay);
     }
 
     /**
