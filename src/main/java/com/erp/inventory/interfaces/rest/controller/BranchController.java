@@ -5,10 +5,12 @@ import com.erp.inventory.application.dto.result.BranchResult;
 import com.erp.inventory.application.usecase.BranchUseCase;
 import com.erp.inventory.interfaces.rest.dto.request.RegisterBranchRequest;
 import com.erp.inventory.interfaces.rest.dto.response.BranchResponse;
+import com.erp.inventory.interfaces.rest.support.CurrentTenant;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,27 +29,29 @@ public class BranchController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
     @Operation(summary = "Registrar sucursal o almacén")
     public ResponseEntity<BranchResponse> register(
-            @RequestHeader("X-Tenant-ID") UUID tenantId,
             @Valid @RequestBody RegisterBranchRequest request) {
         BranchResult result = branchUseCase.register(
-                new RegisterBranchCommand(tenantId, request.name(), request.address()));
+                new RegisterBranchCommand(CurrentTenant.id(), request.name(), request.address()));
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(result));
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR', 'MECANICO')")
     @Operation(summary = "Listar sucursales del taller")
-    public ResponseEntity<List<BranchResponse>> listAll(@RequestHeader("X-Tenant-ID") UUID tenantId) {
-        return ResponseEntity.ok(branchUseCase.listAll(tenantId).stream()
+    public ResponseEntity<List<BranchResponse>> listAll() {
+        return ResponseEntity.ok(branchUseCase.listAll(CurrentTenant.id()).stream()
                 .map(this::toResponse).collect(Collectors.toList()));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR', 'MECANICO')")
     @Operation(summary = "Obtener sucursal por ID")
     public ResponseEntity<BranchResponse> getById(
-            @RequestHeader("X-Tenant-ID") UUID tenantId, @PathVariable UUID id) {
-        return ResponseEntity.ok(toResponse(branchUseCase.getById(id, tenantId)));
+            @PathVariable UUID id) {
+        return ResponseEntity.ok(toResponse(branchUseCase.getById(id, CurrentTenant.id())));
     }
 
     private BranchResponse toResponse(BranchResult r) {

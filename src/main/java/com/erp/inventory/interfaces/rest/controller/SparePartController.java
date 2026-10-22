@@ -5,10 +5,12 @@ import com.erp.inventory.application.dto.result.SparePartResult;
 import com.erp.inventory.application.usecase.SparePartUseCase;
 import com.erp.inventory.interfaces.rest.dto.request.RegisterSparePartRequest;
 import com.erp.inventory.interfaces.rest.dto.response.SparePartResponse;
+import com.erp.inventory.interfaces.rest.support.CurrentTenant;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,27 +29,29 @@ public class SparePartController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
     @Operation(summary = "Registrar repuesto en catálogo")
     public ResponseEntity<SparePartResponse> register(
-            @RequestHeader("X-Tenant-ID") UUID tenantId,
             @Valid @RequestBody RegisterSparePartRequest request) {
         SparePartResult result = sparePartUseCase.register(
-                new RegisterSparePartCommand(tenantId, request.sku(), request.description(), request.minStock()));
+                new RegisterSparePartCommand(CurrentTenant.id(), request.sku(), request.description(), request.minStock()));
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(result));
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR', 'MECANICO')")
     @Operation(summary = "Listar repuestos del taller")
-    public ResponseEntity<List<SparePartResponse>> listAll(@RequestHeader("X-Tenant-ID") UUID tenantId) {
-        return ResponseEntity.ok(sparePartUseCase.listAll(tenantId).stream()
+    public ResponseEntity<List<SparePartResponse>> listAll() {
+        return ResponseEntity.ok(sparePartUseCase.listAll(CurrentTenant.id()).stream()
                 .map(this::toResponse).collect(Collectors.toList()));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR', 'MECANICO')")
     @Operation(summary = "Obtener repuesto por ID")
     public ResponseEntity<SparePartResponse> getById(
-            @RequestHeader("X-Tenant-ID") UUID tenantId, @PathVariable UUID id) {
-        return ResponseEntity.ok(toResponse(sparePartUseCase.getById(id, tenantId)));
+            @PathVariable UUID id) {
+        return ResponseEntity.ok(toResponse(sparePartUseCase.getById(id, CurrentTenant.id())));
     }
 
     private SparePartResponse toResponse(SparePartResult r) {
