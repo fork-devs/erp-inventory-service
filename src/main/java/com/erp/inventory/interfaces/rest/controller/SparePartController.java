@@ -19,7 +19,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/v1/spare-parts")
+@RequestMapping("/api/v1/inventory/spare-parts")
 @Tag(name = "Spare Parts", description = "Gestión del catálogo de repuestos")
 public class SparePartController {
     private final SparePartUseCase sparePartUseCase;

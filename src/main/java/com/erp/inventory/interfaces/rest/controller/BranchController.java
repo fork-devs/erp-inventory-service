@@ -19,7 +19,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/v1/branches")
+@RequestMapping("/api/v1/inventory/branches")
 @Tag(name = "Branches", description = "Gestión de sucursales y almacenes del taller")
 public class BranchController {
     private final BranchUseCase branchUseCase;

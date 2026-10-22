@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/stock")
+@RequestMapping("/api/v1/inventory/stock")
 @Tag(name = "Stock Operations", description = "Operaciones de inventario, reservas y balance")
 public class StockController {
     private final StockOperationUseCase stockUseCase;
