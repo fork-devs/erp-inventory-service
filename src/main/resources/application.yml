@@ -49,6 +49,10 @@ spring:
       # Contrasena del rol de EJECUCION de la aplicacion, que crea la
       # migracion. Sin privilegios de propietario y sin BYPASSRLS.
       appRolePassword: ${ERP_APP_DB_PASSWORD:}
+      # Contrasena del rol de PLATAFORMA, usado solo por el relay de la
+      # bandeja de salida, que recorre los mensajes pendientes de todos los
+      # talleres. Su credencial vive separada de la de la aplicacion.
+      platformRolePassword: ${ERP_PLATFORM_DB_PASSWORD:}
 
 erp:
   auth:
@@ -61,11 +65,6 @@ erp:
     # compiten por el mismo repuesto. Pasada la espera, la reserva falla con
     # un error explicito en lugar de dejar la peticion colgada.
     lock-timeout: ${STOCK_LOCK_TIMEOUT:5s}
-  revalidacion:
-    # Numero maximo de reservas por taller y por ejecucion del barrido: la
-    # cuota del hub es compartida entre talleres.
-    max-por-taller: ${STOCK_MAX_POR_TALLER:20}
-    intervalo: ${STOCK_INTERVALO:60s}
 
 springdoc:
   api-docs:

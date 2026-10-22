@@ -6,10 +6,21 @@ CREATE TABLE IF NOT EXISTS branches (
     created_at  TIMESTAMP NOT NULL DEFAULT now()
 );
 
+-- La Row-Level Security se HABILITA y se FUERZA. FORCE por si solo no la
+-- habilita: solo obliga a que la politica se aplique tambien al propietario de
+-- la tabla, que es el rol que la eludia. Habilitarla y forzarla son dos
+-- sentencias distintas, y hacen falta las dos.
 ALTER TABLE branches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE branches FORCE ROW LEVEL SECURITY;
 
+-- El contexto de taller se lee SIN el flag "missing_ok": si no esta
+-- establecido, la consulta falla de forma explicita en lugar de devolver
+-- cero filas en silencio. El aislamiento no se relaja calladamente.
+DROP POLICY IF EXISTS branch_tenant_isolation ON branches;
 CREATE POLICY branch_tenant_isolation ON branches
-    USING (tenant_id = current_setting('app.tenant_id', TRUE)::uuid);
+    FOR ALL
+    USING (tenant_id = current_setting('app.tenant_id')::uuid)
+    WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
 
 CREATE TABLE IF NOT EXISTS spare_parts (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -22,9 +33,13 @@ CREATE TABLE IF NOT EXISTS spare_parts (
 );
 
 ALTER TABLE spare_parts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE spare_parts FORCE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS spare_part_tenant_isolation ON spare_parts;
 CREATE POLICY spare_part_tenant_isolation ON spare_parts
-    USING (tenant_id = current_setting('app.tenant_id', TRUE)::uuid);
+    FOR ALL
+    USING (tenant_id = current_setting('app.tenant_id')::uuid)
+    WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
 
 CREATE TABLE IF NOT EXISTS stock_movements (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -42,6 +57,10 @@ CREATE TABLE IF NOT EXISTS stock_movements (
 );
 
 ALTER TABLE stock_movements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE stock_movements FORCE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS stock_movement_tenant_isolation ON stock_movements;
 CREATE POLICY stock_movement_tenant_isolation ON stock_movements
-    USING (tenant_id = current_setting('app.tenant_id', TRUE)::uuid);
+    FOR ALL
+    USING (tenant_id = current_setting('app.tenant_id')::uuid)
+    WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
