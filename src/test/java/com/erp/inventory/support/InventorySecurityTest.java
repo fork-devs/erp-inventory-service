@@ -37,7 +37,7 @@ class InventorySecurityTest extends AbstractPostgresIntegrationTest {
     @Test
     @DisplayName("Una peticion sin token se rechaza y no registra ningun movimiento")
     void unaPeticionSinTokenSeRechaza() throws Exception {
-        mockMvc.perform(post("/api/v1/stock/movements")
+        mockMvc.perform(post("/api/v1/inventory/stock/movements")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"sparePartId\":\"" + UUID.randomUUID() + "\",\"branchId\":\""
                                 + UUID.randomUUID() + "\",\"movementType\":\"IN\",\"quantity\":5}"))
@@ -50,7 +50,7 @@ class InventorySecurityTest extends AbstractPostgresIntegrationTest {
         UUID taller = UUID.randomUUID();
         String token = TestJwksServer.signToken(taller, List.of("MECANICO"));
 
-        mockMvc.perform(post("/api/v1/stock/movements")
+        mockMvc.perform(post("/api/v1/inventory/stock/movements")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"sparePartId\":\"" + UUID.randomUUID() + "\",\"branchId\":\""
@@ -64,7 +64,7 @@ class InventorySecurityTest extends AbstractPostgresIntegrationTest {
         UUID taller = UUID.randomUUID();
         String token = TestJwksServer.signToken(taller, List.of("MECANICO"));
 
-        mockMvc.perform(get("/api/v1/spare-parts").header("Authorization", "Bearer " + token))
+        mockMvc.perform(get("/api/v1/inventory/spare-parts").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
     }
 
@@ -74,7 +74,7 @@ class InventorySecurityTest extends AbstractPostgresIntegrationTest {
         UUID taller = UUID.randomUUID();
         String token = TestJwksServer.signToken(taller, List.of("ADMIN_TALLER"));
 
-        mockMvc.perform(post("/api/v1/branches")
+        mockMvc.perform(post("/api/v1/inventory/branches")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Sucursal de prueba\"}"))
@@ -88,7 +88,7 @@ class InventorySecurityTest extends AbstractPostgresIntegrationTest {
         UUID otroTaller = UUID.randomUUID();
         String token = TestJwksServer.signToken(tallerDelToken, List.of("ADMIN_TALLER"));
 
-        mockMvc.perform(get("/api/v1/spare-parts")
+        mockMvc.perform(get("/api/v1/inventory/spare-parts")
                         .header("Authorization", "Bearer " + token)
                         .header("X-Tenant-ID", otroTaller.toString()))
                 .andExpect(status().isForbidden());
@@ -100,7 +100,7 @@ class InventorySecurityTest extends AbstractPostgresIntegrationTest {
         UUID taller = UUID.randomUUID();
         String token = TestJwksServer.signToken(taller, List.of("ADMIN_TALLER"));
 
-        mockMvc.perform(get("/api/v1/spare-parts")
+        mockMvc.perform(get("/api/v1/inventory/spare-parts")
                         .header("Authorization", "Bearer " + token)
                         .header("X-Tenant-ID", taller.toString()))
                 .andExpect(status().isOk());
@@ -112,7 +112,7 @@ class InventorySecurityTest extends AbstractPostgresIntegrationTest {
         String token = TestJwksServer.signToken(UUID.randomUUID(), List.of("ADMIN_TALLER"));
         String adulterado = token.substring(0, token.length() - 4) + "abcd";
 
-        mockMvc.perform(get("/api/v1/spare-parts").header("Authorization", "Bearer " + adulterado))
+        mockMvc.perform(get("/api/v1/inventory/spare-parts").header("Authorization", "Bearer " + adulterado))
                 .andExpect(status().isUnauthorized());
     }
 }
