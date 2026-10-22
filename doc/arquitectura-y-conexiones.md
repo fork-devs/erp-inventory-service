@@ -1,22 +1,26 @@
 # Documentación de Arquitectura e Integración — `erp-inventory-service`
 
-**Microservicio:** Inventario, Catálogo de Repuestos y Stock (Inventory & Spare Parts)  
+**Microservicio:** Repuestos y Stock (Inventory)  
 **Sistema:** DriveOS ERP SaaS  
 **Organización:** ForkDevs — Universidad Peruana de Ciencias Aplicadas (UPC)  
-**Curso:** Fundamentos de Arquitectura de Software (1ASI0657)  
+**Curso:** Fundamentos de Arquitectura de Software (1ASI0657)
 
 ---
 
 ## 1. Visión General del Microservicio
 
-El microservicio `erp-inventory-service` es el componente responsable de la gestión de repuestos, catálogo de partes automotrices, sucursales/almacenes y operaciones de movimiento de inventario para los talleres en DriveOS ERP.
+El microservicio `erp-inventory-service` es el responsable del **catálogo de
+repuestos** y del **stock por sucursal** de los talleres mecánicos que operan
+sobre la plataforma DriveOS ERP SaaS.
 
-Desempeña un rol crítico en la **Saga Transaccional** coordinada con `erp-work-order-service`, proveyendo operaciones de **Reserva y Liberación de Stock con idempotencia** para garantizar que los mecánicos cuenten con los suministros necesarios sin generar sobreventa de stock ni bloqueos distribuidos.
+Es el **origen de la verdad del inventario**: las órdenes de trabajo consumen
+sus existencias, y el valor de lo que el taller tiene en el estante es lo que
+permite decidir qué reponer.
 
 ```
                     ┌─────────────────────────┐
                     │   DriveOS Frontend      │
-                    │   (Angular / Mobile)    │
+                    │  (Angular / Mobile)     │
                     └───────────┬─────────────┘
                                 │ HTTP / REST (JWT Bearer)
                                 ▼
@@ -26,53 +30,73 @@ Desempeña un rol crítico en la **Saga Transaccional** coordinada con `erp-work
                     └───────────┬─────────────┘
                                 │ HTTP / REST (Inyecta X-Tenant-ID, X-User-ID)
                                 ▼
-        ┌─────────────────────────────────────────────────┐
-        │             erp-inventory-service               │  Puerto 8084
-        │        (Clean Architecture / Spring Boot)       │
-        └───────┬─────────────────────────────▲───────────┘
-                │                             │
-       JDBC/SQL │ (Postgres RLS)      HTTP/gRPC│ Reserva/Liberación (Saga)
-                ▼                             │
-   ┌───────────────────────┐     ┌────────────┴───────────┐
-   │   erp_inventory_db    │     │ erp-work-order-service │  Puerto 8086
-   │     (Puerto 5436)     │     │  (Órdenes de Trabajo)  │
-   └───────────────────────┘     └────────────────────────┘
+         ┌─────────────────────────────────────────────────┐
+         │               erp-inventory-service               │  Puerto 8084
+         │        (Clean Architecture / Spring Boot)         │
+         └───────┬─────────────────────────────┬───────────┘
+                 │                             │
+        JDBC/SQL │ (Postgres RLS)             │ gRPC/REST
+                 ▼                             ▼
+    ┌───────────────────────┐     ┌────────────────────────┐
+    │     erp_inventory_db   │     │  erp-work-order-service│
+    │     (Puerto 5436)     │     │  (saga de la reserva)  │
+    └───────────────────────┘     └────────────────────────┘
 ```
 
 ---
 
 ## 2. Arquitectura de Software (Clean Architecture)
 
-El servicio sigue estrictamente los principios de **Clean Architecture** (Arquitectura Limpia) y **Domain-Driven Design (DDD)**, estructurado en cuatro capas concéntricas:
+El servicio sigue estrictamente los principios de **Clean Architecture**
+(Arquitectura Limpia) y **Domain-Driven Design (DDD)**, estructurado en cuatro
+capas concéntricas donde las dependencias siempre apuntan hacia adentro:
+
+```
+      interfaces.rest (Controllers, DTOs, Exception Handlers)
+                 │
+                 ▼
+      application (Use Cases, Services, Commands, Results)
+                 │
+                 ▼
+      domain (Entities, Value Objects, Ports, Domain Exceptions)
+                 ▲
+                 │
+      infrastructure (JPA Entities, Adapters, Config, Repositories)
+```
+
+### Estructura de Paquetes (`com.erp.inventory`):
 
 ```
 com.erp.inventory/
-├── domain/                                  # REGLAS PURAS DE DOMINIO
-│   ├── exception/                           # SparePartNotFound, BranchNotFound, InsufficientStock, SkuAlreadyExists
-│   ├── model/                               # SparePart, Branch, StockMovement, MovementType
-│   ├── port/                                # SparePartRepositoryPort, BranchRepositoryPort, StockMovementRepositoryPort
-│   └── valueobject/                         # TenantId, SparePartId, BranchId, StockMovementId, Sku, Quantity, IdempotencyKey
+├── domain/                                  # CAPA CORE: Reglas de negocio puras (sin Spring)
+│   ├── exception/                           # Excepciones de negocio (con código estable)
+│   ├── event/                               # Eventos de dominio (StockReserved, StockReleased, StockLow)
+│   ├── model/                               # Entidades y agregados (Branch, SparePart, StockMovement, StockLot)
+│   ├── port/                                # Puertos de salida hacia infraestructura
+│   └── valueobject/                         # Inmutables con validación (TenantId, Sku, Quantity, StockLotId)
 │
-├── application/                             # CASOS DE USO Y ORQUESTACIÓN
-│   ├── dto/command/                         # RegisterSparePartCommand, RegisterBranchCommand, ReserveStockCommand, ReleaseStockCommand...
-│   ├── dto/result/                          # SparePartResult, BranchResult, StockMovementResult, StockBalanceResult
-│   ├── service/                             # BranchService, SparePartService, StockOperationService
-│   └── usecase/                             # BranchUseCase, SparePartUseCase, StockOperationUseCase
+├── application/                             # CAPA DE APLICACIÓN: Orquestación de casos de uso
+│   ├── dto/
+│   │   ├── command/                         # Comandos inmutables (ReserveStockCommand, ...)
+│   │   └── result/                          # Resultados inmutables hacia las capas externas
+│   ├── logging/                             # Registro estructurado de los eventos de seguridad
+│   ├── service/                             # Implementaciones de los casos de uso
+│   └── usecase/                             # Interfaces de casos de uso (puertos de entrada)
 │
-├── infrastructure/                          # TECNOLOGÍAS Y PERSISTENCIA
-│   ├── config/                              # SecurityConfig (Stateless), OpenApiConfig (@Hidden), ApplicationServiceConfig
-│   └── persistence/
-│       ├── adapter/                         # BranchPersistenceAdapter, SparePartPersistenceAdapter, StockMovementPersistenceAdapter
-│       ├── entity/                          # BranchJpaEntity, SparePartJpaEntity, StockMovementJpaEntity
-│       ├── mapper/                          # Mappers bidireccionales Dominio <-> Entidad JPA
-│       └── repository/                      # Repositorios Spring Data JPA
+├── infrastructure/                          # CAPA DE INFRAESTRUCTURA: Detalles tecnológicos
+│   ├── config/                              # Seguridad stateless, CORS, OpenAPI, cableado Spring
+│   ├── messaging/                           # Bandeja de salida y publicador de eventos
+│   ├── persistence/                         # Entidades JPA, adaptadores, mappers, repositorios
+│   ├── health/                              # Comprobaciones de salud y disponibilidad
+│   └── security/                            # Verificación del token y contexto de taller
 │
-└── interfaces/rest/                         # APIS Y PRESENTACIÓN
-    ├── advice/                              # GlobalRestExceptionHandler (anotado con @Hidden)
+└── interfaces/rest/                         # CAPA DE ENTRADA: Controladores HTTP
+    ├── advice/                              # Manejo global de excepciones (ProblemDetail)
     ├── controller/                          # BranchController, SparePartController, StockController
-    └── dto/
-        ├── request/                         # Validaciones Jakarta (@Valid, @NotNull, @Min)
-        └── response/                        # DTOs de salida inmutables
+    ├── dto/
+    │   ├── request/                         # Cuerpos de petición con validaciones (@Valid)
+    │   └── response/                        # Respuestas HTTP presentadas al cliente
+    └── support/                             # Contexto de taller de la petición
 ```
 
 ---
@@ -80,70 +104,104 @@ com.erp.inventory/
 ## 3. Modelo de Base de Datos y Aislamiento Multi-Tenant
 
 ### 3.1. Base de Datos Dedicada
+Cumpliendo el principio de **Database-per-Service**, `erp-inventory-service` posee su propia base de datos física/lógica:
 * **Motor:** PostgreSQL 16
-* **Nombre de BD:** `erp_inventory_db`
+* **Nombre:** `erp_inventory_db`
 * **Puerto:** 5436
-* **Herramienta de migración:** Flyway (`V1__init_inventory_schema.sql`)
+* **Herramienta de migración:** Flyway (`V1__create_customers_table.sql` … `V4__stock_outbox.sql`)
 
-### 3.2. Aislamiento por Row Level Security (RLS)
-Todas las tablas implementan políticas RLS que aseguran que ningún taller acceda al inventario o almacenes de otro:
-```sql
-ALTER TABLE branches ENABLE ROW LEVEL SECURITY;
-CREATE POLICY branch_tenant_isolation ON branches
-    USING (tenant_id = current_setting('app.tenant_id', TRUE)::uuid);
+### 3.2. Aislamiento con Row Level Security (RLS)
+Para garantizar la estricta separación de datos entre diferentes talleres (inquilinos):
+1. Todas las tablas de negocio incluyen una columna obligatoria `tenant_id UUID NOT NULL`.
+2. La RLS se **habilita y se fuerza** sobre las cuatro tablas. `FORCE` por sí solo no la habilita: solo obliga a que la política se aplique también al propietario, que es el rol que la eludía.
+   ```sql
+   ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE customers FORCE  ROW LEVEL SECURITY;
 
-ALTER TABLE spare_parts ENABLE ROW LEVEL SECURITY;
-CREATE POLICY spare_part_tenant_isolation ON spare_parts
-    USING (tenant_id = current_setting('app.tenant_id', TRUE)::uuid);
+   CREATE POLICY customer_tenant_isolation ON customers
+       FOR ALL
+       USING      (tenant_id = current_setting('app.tenant_id')::uuid)
+       WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
+   ```
+3. El contexto de taller se lee **sin** el flag `missing_ok`: sin contexto, la consulta **falla** de forma explícita en lugar de devolver cero filas en silencio.
+4. La aplicación conecta con `erp_inventory_app`, que **no** es propietario de las tablas y **no** tiene `BYPASSRLS`. El propietario (`erp_inventory_owner`) lo usan solo las migraciones. Un rol de plataforma (`erp_fleet_platform`) recorre la bandeja de salida.
+5. El contexto lo establece el **principal autenticado**, nunca la fila que se opera, y se aplica con `SET LOCAL` **dentro** de la transacción, con el orden de advice declarado.
 
-ALTER TABLE stock_movements ENABLE ROW LEVEL SECURITY;
-CREATE POLICY stock_movement_tenant_isolation ON stock_movements
-    USING (tenant_id = current_setting('app.tenant_id', TRUE)::uuid);
-```
+### 3.3. Costeo FIFO por lotes
+El saldo **no** es la suma de los movimientos: eso dice cuántas unidades hay, pero no cuánto valen. Cada entrada abre un **lote** (`stock_lots`) con su coste unitario real y su fecha, y las salidas y las reservas **consumen primero el lote más antiguo** (FIFO). La reserva se marca **sobre el lote** (`reserved_quantity`), de modo que el valor del stock reservado sale de la misma fila que el disponible. El coste de referencia del repuesto (`spare_parts.unit_cost`) es el precio esperado y sirve para detectar compras desviadas.
+
+Decisión: `docs/adr/ADR-004-costeo-fifo-por-lotes.md` (copia canónica en este repositorio).
+
+### 3.4. Relación Lógica entre Entidades
+No existen claves foráneas cruzadas entre microservicios:
+* La tabla `stock_movements` almacena la clave `spare_part_id` y `branch_id`, que son **referencias internas** de este mismo servicio.
 
 ---
 
 ## 4. Integraciones y Patrón Saga (Reserva Idempotente)
 
 ### 4.1. Conexión Entrada: `erp-api-gateway` → `erp-inventory-service`
-* Valida el JWT y propaga el header obligatorio `X-Tenant-ID`.
+* **Protocolo:** HTTP / REST síncrono, bajo el prefijo `/api/v1/inventory`, que es el `path-prefix` que el gateway reenvía **sin quitarlo**.
+* **Seguridad:** el gateway valida el JWT emitido por `erp-auth-service` y reenvía las cabeceras. El servicio **vuelve a validar el token** contra el JWKS del emisor y deriva el taller del claim `tenant_id` del token verificado: la cabecera `X-Tenant-ID` es una **pista** que se contrasta con el token, nunca una autoridad.
 
-### 4.2. Participación en la Saga de Órdenes de Trabajo (`ReserveStock` / `ReleaseStock`)
-* **Flujo Positivo:** Cuando se aprueba una orden de trabajo en `erp-work-order-service`, este solicita la reserva mediante `POST /api/v1/stock/reserve` enviando un `idempotencyKey` único (ej. `saga-wo-123-reserve-part1`).
-* **Idempotencia:** Si la red falla y se reintenta la llamada, el servicio retorna la reserva previamente registrada sin duplicar el descuento de inventario.
-* **Flujo Compensatorio (Rollback):** Si la orden de trabajo es cancelada o rechazada por el cliente, se emite una solicitud `POST /api/v1/stock/release` para liberar los artículos reservados.
+### 4.2. Participación en la Saga de Órdenes de Trabajo
+* **Reserva:** `POST /api/v1/inventory/stock/reserve` con `idempotencyKey` (ej. `saga-wo-123-reserve-part1`).
+* **Confirmación:** `POST /api/v1/inventory/stock/commit` con su propia `idempotencyKey`. Sin ella, la reserva aprobada nunca se convertía en una salida real y el stock quedaba reservado para siempre.
+* **Liberación (rollback):** `POST /api/v1/inventory/stock/release` para liberar las unidades reservadas.
+* **Idempotencia:** la clave se **reclama en la base de datos** con la propia inserción del movimiento (`ON CONFLICT DO NOTHING`): dos peticiones concurrentes con la misma clave no pueden registrar dos movimientos, y la que pierde la carrera devuelve el resultado de la que la ganó.
+* **Concurrencia:** el disponible se calcula con los **lotes bloqueados** (`FOR UPDATE`), en orden de llegada: dos reservas simultáneas se serializan y no pueden sobre-reservar.
 
 ---
 
 ## 5. Matriz de Endpoints REST
 
-Documentación interactiva disponible en:  
+Documentación interactiva disponible (perfil de desarrollo):  
 👉 **`http://localhost:8084/swagger-ui/index.html`**
 
-| Método | Endpoint | Descripción | Header Obligatorio |
+Todos los endpoints exigen un **token de acceso verificado** y declaran el rol que exigen. El taller se deriva del token.
+
+| Método | Endpoint | Descripción | Rol |
 |---|---|---|---|
-| **POST** | `/api/v1/branches` | Registrar una nueva sucursal o almacén | `X-Tenant-ID` |
-| **GET** | `/api/v1/branches` | Listar sucursales del taller | `X-Tenant-ID` |
-| **GET** | `/api/v1/branches/{id}` | Obtener sucursal por ID | `X-Tenant-ID` |
-| **POST** | `/api/v1/spare-parts` | Crear nuevo repuesto en el catálogo | `X-Tenant-ID` |
-| **GET** | `/api/v1/spare-parts` | Listar repuestos del catálogo | `X-Tenant-ID` |
-| **GET** | `/api/v1/spare-parts/{id}` | Obtener repuesto por ID | `X-Tenant-ID` |
-| **POST** | `/api/v1/stock/movements` | Registrar entrada manual (`IN`) o salida (`OUT`) | `X-Tenant-ID` |
-| **POST** | `/api/v1/stock/reserve` | Reservar repuestos para una orden (Saga Idempotente) | `X-Tenant-ID` |
-| **POST** | `/api/v1/stock/release` | Liberar reserva ante cancelación de orden | `X-Tenant-ID` |
-| **GET** | `/api/v1/stock/balance/{partId}/branch/{branchId}` | Consultar saldo, stock reservado y disponible | `X-Tenant-ID` |
+| **POST** | `/api/v1/inventory/branches` | Registrar una sucursal o almacén | `SUPERADMIN`, `ADMIN_TALLER`, `ASESOR` |
+| **GET** | `/api/v1/inventory/branches` | Listar sucursales del taller | + `MECANICO` |
+| **GET** | `/api/v1/inventory/branches/{id}` | Obtener sucursal por ID | + `MECANICO` |
+| **POST** | `/api/v1/inventory/spare-parts` | Crear repuesto en el catálogo | `SUPERADMIN`, `ADMIN_TALLER`, `ASESOR` |
+| **GET** | `/api/v1/inventory/spare-parts` | Listar repuestos del catálogo | + `MECANICO` |
+| **GET** | `/api/v1/inventory/spare-parts/{id}` | Obtener repuesto por ID | + `MECANICO` |
+| **POST** | `/api/v1/inventory/stock/movements` | Registrar entrada (`IN`) o salida (`OUT`) manual, con su coste | `SUPERADMIN`, `ADMIN_TALLER`, `ASESOR` |
+| **POST** | `/api/v1/inventory/stock/reserve` | Reservar repuestos para una orden (saga idempotente) | `SUPERADMIN`, `ADMIN_TALLER`, `ASESOR` |
+| **POST** | `/api/v1/inventory/stock/commit` | Confirmar la reserva: consume el stock reservado | `SUPERADMIN`, `ADMIN_TALLER`, `ASESOR` |
+| **POST** | `/api/v1/inventory/stock/release` | Liberar reserva ante cancelación de orden | `SUPERADMIN`, `ADMIN_TALLER`, `ASESOR` |
+| **GET** | `/api/v1/inventory/stock/balance/{sparePartId}/branch/{branchId}` | Consultar saldo, stock reservado y disponible, **con su valor** | + `MECANICO` |
+
+**Errores.** El cuerpo del error es un `ProblemDetail` (RFC 9457) con un código estable por familia (`code`) y el taller (`tenant_id`): `INVENTORY_SKU_DUPLICADO`, `INVENTORY_INSUFFICIENT_STOCK`, `INVENTORY_BRANCH_NOT_FOUND`, `INVENTORY_PART_NOT_FOUND`, `INVENTORY_ACCESS_DENIED`, `INVENTORY_UNAUTHENTICATED`, `INVENTORY_VALIDATION_ERROR`, `INVENTORY_NOT_FOUND`, `INVENTORY_INTERNAL_ERROR`.
 
 ---
 
-## 6. Guía de Ejecución Local
+## 6. Eventos de Stock
+
+Los cambios de stock relevantes (`StockReserved`, `StockReleased`, `StockLow`) se persisten en una **bandeja de salida**, en la **misma transacción** que confirma el cambio, y los publica un relay con reintentos de espera creciente y cola de muertos. El transporte sigue siendo el `EventPublisherPort`: **Kafka todavía no existe** en la plataforma, y la bandeja no depende del bus.
+
+El identificador del evento viaja en el mensaje y no se regenera en cada reintento, de modo que un consumidor pueda **deduplicar**: la entrega es al menos una vez, y el identificador es lo que hace posible la deduplicación.
+
+---
+
+## 7. Guía de Ejecución Local
 
 ```bash
-# 1. Ubicarse en el directorio
-cd "C:\Users\ASUS\Documents\FUNDAMENTOS\informefinal\Nueva carpeta\erp-inventory-service"
+# 1. Posicionarse en el directorio
+cd erp-inventory-service
 
-# 2. Levantar la base de datos PostgreSQL en Docker
+# 2. Definir la contraseña del rol propietario
+export SPRING_FLYWAY_PASSWORD=una-contrasena-local
+
+# 3. Levantar la base de datos PostgreSQL en Docker
 docker compose up -d
 
-# 3. Iniciar la aplicación
-.\mvnw.cmd spring-boot:run
+# 4. Compilar y ejecutar la aplicación mediante el Maven Wrapper
+./mvnw spring-boot:run
 ```
+
+El servicio estará listo para recibir peticiones en el puerto **`8084`**, bajo
+el prefijo **`/api/v1/inventory`**. Sin un token de acceso verificado, la
+API responde `401`.

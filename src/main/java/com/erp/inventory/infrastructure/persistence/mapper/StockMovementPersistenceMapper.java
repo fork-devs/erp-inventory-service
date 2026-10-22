@@ -14,7 +14,7 @@ public class StockMovementPersistenceMapper {
                 m.getSparePartId().getValue(), m.getBranchId().getValue(),
                 m.getMovementType().name(), m.getQuantity().getValue(),
                 m.getReferenceId(), m.getIdempotencyKey() != null ? m.getIdempotencyKey().getValue() : null,
-                m.getCreatedAt()
+                m.getUnitCost(), m.getCreatedAt()
         );
     }
 
@@ -24,7 +24,7 @@ public class StockMovementPersistenceMapper {
                 new SparePartId(e.getSparePartId()), new BranchId(e.getBranchId()),
                 MovementType.valueOf(e.getMovementType()), Quantity.of(e.getQuantity()),
                 e.getReferenceId(), e.getIdempotencyKey() != null ? IdempotencyKey.of(e.getIdempotencyKey()) : null,
-                e.getCreatedAt()
+                e.getUnitCost(), e.getCreatedAt()
         );
     }
 }
