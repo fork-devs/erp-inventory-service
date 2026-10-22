@@ -82,4 +82,4 @@
 - [x] 10.2 Actualizar `erp-inventory-service/doc/arquitectura-y-conexiones.md`: la matriz de endpoints con el prefijo y los roles, la saga completa con las tres operaciones, el aislamiento real y el modelo de lotes; verificar con `grep -n "api/v1/inventory" doc/arquitectura-y-conexiones.md` que no queda ninguna ruta antigua
 - [x] 10.3 Actualizar `docs/doc-estado-implementacion.md`: la fila 7 de §2 deja de decir "⚫ No existe" y pasa al estado real, con los hallazgos que este change cierra en este servicio, y el Sprint 4+ recoge el servicio construido
 - [x] 10.4 Validar el change con `openspec validate --all --strict` en el repositorio y en la raíz del workspace, y comprobar que `git log --merges develop..feature/add-inventory-service` **no devuelve ninguna línea**
-- [ ] 10.5 Publicar la rama `feature/add-inventory-service` en `fork-devs/erp-inventory-service`, **sin merges**, con un commit por task y los mensajes en inglés
+- [x] 10.5 Publicar la rama `feature/add-inventory-service` en `fork-devs/erp-inventory-service`, **sin merges**, con un commit por task y los mensajes en inglés
