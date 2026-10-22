@@ -1,0 +1,33 @@
+# =============================================================================
+# ERP INVENTORY SERVICE - ENTORNO LOCAL
+# =============================================================================
+# La base se crea con el rol PROPIETARIO del esquema, que es el unico que
+# ejecuta las migraciones. El rol de EJECUCION de la aplicacion lo crea la
+# migracion V2, con los permisos que necesita y sin privilegios de propietario:
+# el propietario de una tabla elude su propia politica de Row-Level Security.
+#
+# Ningun secreto tiene valor por defecto: las contrasenas llegan por variable
+# de entorno. Si faltan, el compose falla al arrancar en lugar de publicar una
+# contrasena conocida.
+# =============================================================================
+
+services:
+  inventory-postgres:
+    image: 'postgres:16-alpine'
+    container_name: erp-inventory-postgres
+    environment:
+      - POSTGRES_DB=erp_inventory_db
+      - POSTGRES_USER=erp_inventory_owner
+      - POSTGRES_PASSWORD=${SPRING_FLYWAY_PASSWORD:?defina SPRING_FLYWAY_PASSWORD con la contrasena del rol propietario}
+    ports:
+      - '5436:5432'
+    volumes:
+      - postgres_inventory_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U erp_inventory_owner -d erp_inventory_db']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_inventory_data:

@@ -1,0 +1,44 @@
+spring:
+  profiles:
+    active: dev
+  application:
+    name: erp-inventory-service-test
+  # El perfil de test NO define datasource: la configuracion de la base de
+  # datos la inyecta AbstractPostgresIntegrationTest, que arranca una
+  # instancia real de PostgreSQL en proceso.
+  #
+  # Antes se usaba H2 con ddl-auto: create-drop y Flyway desactivado, con lo
+  # que las migraciones nunca se ejecutaban, la politica de Row-Level Security
+  # no se aplicaba jamas y una migracion alterada no se detectaba nunca.
+  jpa:
+    show-sql: false
+  flyway:
+    enabled: true
+
+erp:
+  auth:
+    jwks-url: http://127.0.0.1:1/.well-known/jwks.json
+  stock:
+    lock-timeout: 5s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+      probes:
+        enabled: true
+      group:
+        # La disponibilidad comprueba de verdad la base de datos: un servicio
+        # con el pool de conexiones roto esta vivo, pero no sirve de nada.
+        readiness:
+          include: readinessState, inventoryReadiness
+
+logging:
+  level:
+    root: WARN
+    com.erp.inventory: INFO
