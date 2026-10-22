@@ -199,6 +199,12 @@ public class StockOperationService implements StockOperationUseCase {
                 return toResult(yaReclamado.get());
             }
 
+            int reservadas = reservadas(lotes);
+            if (reservadas < cmd.quantity()) {
+                throw new InsufficientStockException("No hay stock reservado suficiente para liberar. "
+                        + "Reservado: " + reservadas + ", Requerido: " + cmd.quantity());
+            }
+
             liberar(lotes, cmd.quantity());
             guardarLotes(lotes);
 
@@ -239,6 +245,16 @@ public class StockOperationService implements StockOperationUseCase {
             Optional<StockMovement> yaReclamado = movementRepository.claim(movimiento);
             if (yaReclamado.isPresent()) {
                 return toResult(yaReclamado.get());
+            }
+
+            // Si la reserva no tiene unidades reservadas suficientes, la
+            // confirmacion se RECHAZA: confirmar en silencio seria dejar el
+            // stock reservado para siempre y anotar un consumo que no ha
+            // ocurrido.
+            int reservadas = reservadas(lotes);
+            if (reservadas < cmd.quantity()) {
+                throw new InsufficientStockException("No hay stock reservado suficiente para confirmar. "
+                        + "Reservado: " + reservadas + ", Requerido: " + cmd.quantity());
             }
 
             consumirReservado(lotes, cmd.quantity());
@@ -352,6 +368,11 @@ public class StockOperationService implements StockOperationUseCase {
 
     private int disponibles(List<StockLot> lotes) {
         return lotes.stream().mapToInt(StockLot::getAvailableQuantity).sum();
+    }
+
+    /** Unidades reservadas en los lotes. */
+    private int reservadas(List<StockLot> lotes) {
+        return lotes.stream().mapToInt(StockLot::getReservedQuantity).sum();
     }
 
     /** Consume los lotes mas antiguos primero: FIFO. */
