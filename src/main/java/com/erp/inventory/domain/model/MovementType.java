@@ -4,5 +4,7 @@ public enum MovementType {
     IN,
     OUT,
     RESERVE,
-    RELEASE
+    RELEASE,
+    /** Consume el stock reservado: la reserva se convierte en salida real. */
+    COMMIT
 }

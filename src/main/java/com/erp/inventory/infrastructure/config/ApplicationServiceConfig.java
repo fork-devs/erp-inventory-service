@@ -5,6 +5,7 @@ import com.erp.inventory.application.service.SparePartService;
 import com.erp.inventory.application.service.StockOperationService;
 import com.erp.inventory.domain.port.BranchRepositoryPort;
 import com.erp.inventory.domain.port.SparePartRepositoryPort;
+import com.erp.inventory.domain.port.StockLotRepositoryPort;
 import com.erp.inventory.domain.port.StockMovementRepositoryPort;
 import com.erp.inventory.domain.port.UnitOfWork;
 import com.erp.inventory.infrastructure.security.JwksKeyManager;
@@ -30,10 +31,11 @@ public class ApplicationServiceConfig {
 
     @Bean
     public StockOperationService stockOperationService(StockMovementRepositoryPort movementRepo,
+                                                       StockLotRepositoryPort lotRepo,
                                                        SparePartRepositoryPort sparePartRepo,
                                                        BranchRepositoryPort branchRepo,
                                                        UnitOfWork unitOfWork) {
-        return new StockOperationService(movementRepo, sparePartRepo, branchRepo, unitOfWork);
+        return new StockOperationService(movementRepo, lotRepo, sparePartRepo, branchRepo, unitOfWork);
     }
 
     /**

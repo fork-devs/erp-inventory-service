@@ -1,6 +1,7 @@
 package com.erp.inventory.infrastructure.persistence.entity;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -23,6 +24,8 @@ public class StockMovementJpaEntity {
     private UUID referenceId;
     @Column(name = "idempotency_key", length = 100)
     private String idempotencyKey;
+    @Column(name = "unit_cost", precision = 14, scale = 4)
+    private BigDecimal unitCost;
     @Column(name = "created_at")
     private Instant createdAt;
 
@@ -30,7 +33,7 @@ public class StockMovementJpaEntity {
 
     public StockMovementJpaEntity(UUID id, UUID tenantId, UUID sparePartId, UUID branchId,
                                   String movementType, int quantity, UUID referenceId,
-                                  String idempotencyKey, Instant createdAt) {
+                                  String idempotencyKey, BigDecimal unitCost, Instant createdAt) {
         this.id = id;
         this.tenantId = tenantId;
         this.sparePartId = sparePartId;
@@ -39,6 +42,7 @@ public class StockMovementJpaEntity {
         this.quantity = quantity;
         this.referenceId = referenceId;
         this.idempotencyKey = idempotencyKey;
+        this.unitCost = unitCost;
         this.createdAt = createdAt;
     }
 
@@ -57,6 +61,8 @@ public class StockMovementJpaEntity {
     public UUID getReferenceId() { return referenceId; }
     public void setReferenceId(UUID referenceId) { this.referenceId = referenceId; }
     public String getIdempotencyKey() { return idempotencyKey; }
+    public BigDecimal getUnitCost() { return unitCost; }
+    public void setUnitCost(BigDecimal unitCost) { this.unitCost = unitCost; }
     public void setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

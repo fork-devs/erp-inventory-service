@@ -39,7 +39,8 @@ public class StockController {
             @Valid @RequestBody RegisterStockMovementRequest request) {
         StockMovementResult result = stockUseCase.registerMovement(
                 new RegisterStockMovementCommand(CurrentTenant.id(), request.sparePartId(), request.branchId(),
-                        request.movementType(), request.quantity(), request.referenceId(), request.idempotencyKey()));
+                        request.movementType(), request.quantity(), request.unitCost(),
+                        request.referenceId(), request.idempotencyKey()));
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(result));
     }
 
@@ -52,6 +53,17 @@ public class StockController {
                 new ReserveStockCommand(CurrentTenant.id(), request.sparePartId(), request.branchId(),
                         request.quantity(), request.workOrderId(), request.idempotencyKey()));
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(result));
+    }
+
+    @PostMapping("/commit")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @Operation(summary = "Confirmar reserva de stock", description = "Consume el stock reservado de la orden de trabajo. Operacion idempotente")
+    public ResponseEntity<StockMovementResponse> commit(
+            @Valid @RequestBody ReserveStockRequest request) {
+        StockMovementResult result = stockUseCase.commit(
+                new ReserveStockCommand(CurrentTenant.id(), request.sparePartId(), request.branchId(),
+                        request.quantity(), request.workOrderId(), request.idempotencyKey()));
+        return ResponseEntity.status(HttpStatus.OK).body(toResponse(result));
     }
 
     @PostMapping("/release")
@@ -74,7 +86,8 @@ public class StockController {
         StockBalanceResult result = stockUseCase.getBalance(sparePartId, branchId, CurrentTenant.id());
         return ResponseEntity.ok(new StockBalanceResponse(
                 result.sparePartId(), result.branchId(), result.totalIn(),
-                result.totalOut(), result.totalReserved(), result.availableStock()));
+                result.totalOut(), result.totalReserved(), result.availableStock(),
+                result.availableValue(), result.reservedValue()));
     }
 
     private StockMovementResponse toResponse(StockMovementResult r) {

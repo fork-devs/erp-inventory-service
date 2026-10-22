@@ -60,7 +60,8 @@ public class PostgresTenantRlsAspect {
      */
     @Before("execution(* com.erp.inventory.infrastructure.persistence.adapter.BranchPersistenceAdapter.*(..))"
             + " || execution(* com.erp.inventory.infrastructure.persistence.adapter.SparePartPersistenceAdapter.*(..))"
-            + " || execution(* com.erp.inventory.infrastructure.persistence.adapter.StockMovementPersistenceAdapter.*(..))")
+            + " || execution(* com.erp.inventory.infrastructure.persistence.adapter.StockMovementPersistenceAdapter.*(..))"
+            + " || execution(* com.erp.inventory.infrastructure.persistence.adapter.StockLotPersistenceAdapter.*(..))")
     public void applyTenantContext() {
         UUID tenantId = TenantContextHolder.getTenantId();
         if (tenantId == null) {
