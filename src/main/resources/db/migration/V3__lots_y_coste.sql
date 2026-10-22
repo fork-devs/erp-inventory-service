@@ -31,6 +31,48 @@ ALTER TABLE spare_parts ADD COLUMN IF NOT EXISTS unit_cost NUMERIC(14, 4) NOT NU
 ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS unit_cost NUMERIC(14, 4);
 
 -- -----------------------------------------------------------------------------
+-- 4. Los lotes
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS stock_lots (
+    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id         UUID NOT NULL,
+    spare_part_id     UUID NOT NULL,
+    branch_id         UUID NOT NULL,
+    quantity          INTEGER NOT NULL,
+    reserved_quantity INTEGER NOT NULL DEFAULT 0,
+    unit_cost         NUMERIC(14, 4) NOT NULL,
+    entry_date        TIMESTAMP NOT NULL DEFAULT now(),
+    created_at        TIMESTAMP NOT NULL DEFAULT now(),
+    CONSTRAINT ck_lot_quantity_positive CHECK (quantity > 0),
+    CONSTRAINT ck_lot_reserved_within_quantity CHECK (reserved_quantity >= 0 AND reserved_quantity <= quantity),
+    CONSTRAINT fk_lot_part FOREIGN KEY (spare_part_id) REFERENCES spare_parts(id),
+    CONSTRAINT fk_lot_branch FOREIGN KEY (branch_id) REFERENCES branches(id)
+);
+
+ALTER TABLE stock_lots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE stock_lots FORCE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS stock_lot_tenant_isolation ON stock_lots;
+CREATE POLICY stock_lot_tenant_isolation ON stock_lots
+    FOR ALL
+    USING (tenant_id = current_setting('app.tenant_id')::uuid)
+    WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
+
+-- El consumo FIFO: los lotes de un repuesto y una sucursal, del mas antiguo al
+-- mas reciente. Es el indice que recorre el consumo y el que serializa dos
+-- reservas concurrentes del mismo repuesto.
+CREATE INDEX IF NOT EXISTS idx_stock_lots_fifo
+    ON stock_lots(tenant_id, spare_part_id, branch_id, entry_date);
+
+-- Un lote por entrada: la entrada es la que abre el lote.
+CREATE INDEX IF NOT EXISTS idx_stock_lots_movement
+    ON stock_lots(tenant_id, spare_part_id, branch_id);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE stock_lots TO erp_inventory_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE stock_lots TO erp_inventory_platform;
+
+-- -----------------------------------------------------------------------------
 -- 3. El conjunto de tipos de movimiento
 -- -----------------------------------------------------------------------------
 -- El tipo de movimiento es un conjunto explicito: el que hay, el que sale, la
@@ -73,44 +115,3 @@ BEGIN
 END
 $$;
 
--- -----------------------------------------------------------------------------
--- 4. Los lotes
--- -----------------------------------------------------------------------------
-
-CREATE TABLE IF NOT EXISTS stock_lots (
-    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id         UUID NOT NULL,
-    spare_part_id     UUID NOT NULL,
-    branch_id         UUID NOT NULL,
-    quantity          INTEGER NOT NULL,
-    reserved_quantity INTEGER NOT NULL DEFAULT 0,
-    unit_cost         NUMERIC(14, 4) NOT NULL,
-    entry_date        TIMESTAMP NOT NULL DEFAULT now(),
-    created_at        TIMESTAMP NOT NULL DEFAULT now(),
-    CONSTRAINT ck_lot_quantity_positive CHECK (quantity > 0),
-    CONSTRAINT ck_lot_reserved_within_quantity CHECK (reserved_quantity >= 0 AND reserved_quantity <= quantity),
-    CONSTRAINT fk_lot_part FOREIGN KEY (spare_part_id) REFERENCES spare_parts(id),
-    CONSTRAINT fk_lot_branch FOREIGN KEY (branch_id) REFERENCES branches(id)
-);
-
-ALTER TABLE stock_lots ENABLE ROW LEVEL SECURITY;
-ALTER TABLE stock_lots FORCE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS stock_lot_tenant_isolation ON stock_lots;
-CREATE POLICY stock_lot_tenant_isolation ON stock_lots
-    FOR ALL
-    USING (tenant_id = current_setting('app.tenant_id')::uuid)
-    WITH CHECK (tenant_id = current_setting('app.tenant_id')::uuid);
-
--- El consumo FIFO: los lotes de un repuesto y una sucursal, del mas antiguo al
--- mas reciente. Es el indice que recorre el consumo y el que serializa dos
--- reservas concurrentes del mismo repuesto.
-CREATE INDEX IF NOT EXISTS idx_stock_lots_fifo
-    ON stock_lots(tenant_id, spare_part_id, branch_id, entry_date);
-
--- Un lote por entrada: la entrada es la que abre el lote.
-CREATE INDEX IF NOT EXISTS idx_stock_lots_movement
-    ON stock_lots(tenant_id, spare_part_id, branch_id);
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE stock_lots TO erp_inventory_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE stock_lots TO erp_inventory_platform;

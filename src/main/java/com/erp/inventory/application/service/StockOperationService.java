@@ -28,6 +28,7 @@ import com.erp.inventory.domain.valueobject.IdempotencyKey;
 import com.erp.inventory.domain.valueobject.Quantity;
 import com.erp.inventory.domain.valueobject.SparePartId;
 import com.erp.inventory.domain.valueobject.TenantId;
+import com.erp.inventory.application.logging.SecurityEventLogger;
 import com.erp.inventory.infrastructure.messaging.DomainEventSerializer;
 import org.springframework.stereotype.Service;
 
@@ -170,6 +171,10 @@ public class StockOperationService implements StockOperationUseCase {
                     movimiento.getId().getValue(), partId.getValue(), branchId.getValue(),
                     cmd.quantity(), cmd.workOrderId());
             guardarEnBandeja(movimiento, evento);
+            SecurityEventLogger.registrar("stock_reservado", tenantId.getValue(), null,
+                    org.slf4j.MDC.get("trace_id"), "OK",
+                    java.util.Map.of("movimiento_id", movimiento.getId().getValue().toString(),
+                            "cantidad", String.valueOf(cmd.quantity())));
             avisarSiStockBajo(tenantId, partId, branchId, lotes);
 
             return toResult(movimiento);
@@ -201,6 +206,10 @@ public class StockOperationService implements StockOperationUseCase {
                     movimiento.getId().getValue(), partId.getValue(), branchId.getValue(),
                     cmd.quantity(), cmd.workOrderId());
             guardarEnBandeja(movimiento, evento);
+            SecurityEventLogger.registrar("stock_liberado", tenantId.getValue(), null,
+                    org.slf4j.MDC.get("trace_id"), "OK",
+                    java.util.Map.of("movimiento_id", movimiento.getId().getValue().toString(),
+                            "cantidad", String.valueOf(cmd.quantity())));
 
             return toResult(movimiento);
         });
@@ -235,6 +244,10 @@ public class StockOperationService implements StockOperationUseCase {
             consumirReservado(lotes, cmd.quantity());
             guardarLotes(lotes);
             avisarSiStockBajo(tenantId, partId, branchId, lotes);
+            SecurityEventLogger.registrar("stock_confirmado", tenantId.getValue(), null,
+                    org.slf4j.MDC.get("trace_id"), "OK",
+                    java.util.Map.of("movimiento_id", movimiento.getId().getValue().toString(),
+                            "cantidad", String.valueOf(cmd.quantity())));
 
             return toResult(movimiento);
         });
