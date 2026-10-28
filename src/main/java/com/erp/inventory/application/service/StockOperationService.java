@@ -39,23 +39,20 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Operaciones de stock: entrada, salida, reserva, confirmacion y liberacion.
+ * Stock operations: incoming movements, outgoing movements, reservations, commits, and releases.
  *
- * <p>Tres reglas gobiernan el servicio:
+ * <p>Three core rules govern the service:
  *
  * <ol>
- *   <li>La <strong>idempotencia se reclama en la base de datos</strong>: el
- *       registro del movimiento ES la reclamacion de la clave, y la unicidad
- *       arbitra entre las peticiones concurrentes con la misma clave. Entre
- *       consultar la clave y registrar el movimiento hay una ventana en la
- *       que otra peticion pasaria la comprobacion, y las dos registrarian su
- *       movimiento.</li>
- *   <li>El disponible se calcula con los <strong>lotes bloqueados</strong>, en
- *       orden de llegada: dos reservas simultaneas no pueden sobre-reservar,
- *       porque la segunda espera el bloqueo y ve el stock ya descontado.</li>
- *   <li>El saldo se valora con los <strong>lotes</strong>, no con la suma de
- *       los movimientos: el saldo dice cuantas unidades hay, y el valor dice
- *       cuanto valen.</li>
+ *   <li><strong>Idempotency is claimed in the database</strong>: registering the movement
+ *       constitutes the claim of the key, where uniqueness constraints arbitrate between
+ *       concurrent requests with the same key. A separate query-then-insert pattern leaves
+ *       a race window where two concurrent requests could both pass and insert duplicates.</li>
+ *   <li>Available quantity is computed with <strong>lots locked</strong> in arrival order:
+ *       two concurrent reservations cannot over-reserve, as the second waits for the lock
+ *       and reads already discounted stock.</li>
+ *   <li>Stock balance is valued using <strong>lots</strong> rather than the net sum of movements:
+ *       the balance reflects total quantity, and individual lot costs determine total value.</li>
  * </ol>
  */
 @Service
@@ -98,8 +95,8 @@ public class StockOperationService implements StockOperationUseCase {
             List<StockLot> lotes = lotRepository.bloquearLotes(tenantId, partId, branchId);
 
             if (type == MovementType.IN) {
-                // Una entrada ABRE un lote: el coste real con el que se compro
-                // es el que valora el stock a partir de ahora.
+                // An incoming movement OPENS a lot: the actual purchase unit cost
+                // values the stock from this point forward.
                 BigDecimal coste = cmd.unitCost() != null ? cmd.unitCost() : BigDecimal.ZERO;
                 StockLot lote = StockLot.open(tenantId, partId, branchId, qty.getValue(), coste, Instant.now());
                 lotRepository.guardar(lote);
@@ -140,16 +137,14 @@ public class StockOperationService implements StockOperationUseCase {
             BranchId branchId = new BranchId(cmd.branchId());
             validateEntitiesExist(partId, branchId, tenantId);
 
-            // Los lotes se BLOQUEAN: la comprobacion del disponible, con ellos
-            // bloqueados, es lo que impide sobre-reservar.
+            // Lots are LOCKED: computing availability while locked prevents over-reservation.
             List<StockLot> lotes = lotRepository.bloquearLotes(tenantId, partId, branchId);
 
             StockMovement movimiento = StockMovement.create(tenantId, partId, branchId, MovementType.RESERVE,
                     Quantity.of(cmd.quantity()), cmd.workOrderId(), claveDe(cmd.idempotencyKey()));
 
-            // La reclamacion va ANTES de la comprobacion: si la clave ya
-            // estaba reclamada, se devuelve el resultado de la otra peticion
-            // sin comprobar el saldo ni consumir lotes.
+            // Claiming precedes balance checks: if the idempotency key was already claimed,
+            // the result of the earlier request is returned without re-checking balance or consuming lots.
             Optional<StockMovement> yaReclamado = movementRepository.claim(movimiento);
             if (yaReclamado.isPresent()) {
                 return toResult(yaReclamado.get());
@@ -157,9 +152,8 @@ public class StockOperationService implements StockOperationUseCase {
 
             int disponible = disponibles(lotes);
             if (disponible < cmd.quantity()) {
-                // La transaccion se revierte: el movimiento no queda y la clave
-                // queda LIBRE para un reintento. Un fallo no se cachea como
-                // resultado definitivo.
+                // The transaction rolls back: the movement is discarded and the key
+                // remains FREE for a retry. A failure is not cached as a final result.
                 throw new InsufficientStockException("No hay suficiente stock disponible para reservar. Disponible: "
                         + disponible + ", Requerido: " + cmd.quantity());
             }
@@ -222,12 +216,10 @@ public class StockOperationService implements StockOperationUseCase {
     }
 
     /**
-     * Confirma una reserva: el stock reservado se consume y la reserva deja de
-     * estar activa.
+     * Commits a reservation: reserved stock is permanently consumed and the reservation is resolved.
      *
-     * <p>Sin esta operacion, una reserva confirmada por la orden de trabajo
-     * nunca se convertia en una salida real, y el stock quedaba reservado
-     * para siempre.
+     * <p>Without this operation, reservations approved by a work order would never transition
+     * into actual consumptions, leaving stock indefinitely reserved.
      */
     @Override
     public StockMovementResult commit(ReserveStockCommand cmd) {
@@ -247,10 +239,8 @@ public class StockOperationService implements StockOperationUseCase {
                 return toResult(yaReclamado.get());
             }
 
-            // Si la reserva no tiene unidades reservadas suficientes, la
-            // confirmacion se RECHAZA: confirmar en silencio seria dejar el
-            // stock reservado para siempre y anotar un consumo que no ha
-            // ocurrido.
+            // If the lot does not hold sufficient reserved units, the commit is REJECTED:
+            // silently succeeding would keep stock orphaned and record an uncommitted consumption.
             int reservadas = reservadas(lotes);
             if (reservadas < cmd.quantity()) {
                 throw new InsufficientStockException("No hay stock reservado suficiente para confirmar. "
@@ -270,11 +260,10 @@ public class StockOperationService implements StockOperationUseCase {
     }
 
     /**
-     * Saldo del repuesto en la sucursal, con su VALOR.
+     * Retrieves the spare part stock balance at a branch, including monetary VALUATION.
      *
-     * <p>El valor sale de los lotes que quedan, no de la suma de los
-     * movimientos: el saldo dice cuantas unidades hay, y el valor dice cuanto
-     * valen.
+     * <p>The valuation is derived from remaining lots rather than summed movements:
+     * the balance indicates unit quantities, and lots determine their value.
      */
     @Override
     public StockBalanceResult getBalance(UUID sparePartId, UUID branchId, UUID tenantId) {
@@ -302,7 +291,7 @@ public class StockOperationService implements StockOperationUseCase {
             valorReservado = valorReservado.add(lote.getReservedValue());
         }
 
-        // Las salidas ya se descontaron de los lotes al consumirlos.
+        // Outgoing quantities were already deducted from lots upon consumption.
         int salidas = Math.max(0, entradas - disponible - totalReservado);
 
         return new StockBalanceResult(sparePartId, branchId, entradas, salidas, totalReservado,
@@ -310,11 +299,10 @@ public class StockOperationService implements StockOperationUseCase {
     }
 
     /**
-     * Guarda el evento en la BANDEJA DE SALIDA, en la MISMA transaccion que
-     * confirma el cambio de stock: o se confirman los dos, o no se confirma
-     * ninguno. Publicar el evento dentro de la transaccion de negocio es
-     * justo lo que el patron evita: el bus podria recibir un evento que la
-     * base de datos no llego a confirmar.
+     * Persists the event in the OUTBOX within the SAME transaction that commits
+     * the stock change: either both commit, or neither does. Publishing directly
+     * inside the business transaction is avoided to prevent the event bus from
+     * receiving events that the database never committed.
      */
     private void guardarEnBandeja(StockMovement movimiento, com.erp.inventory.domain.event.DomainEvent evento) {
         StockOutboxMessage mensaje = StockOutboxMessage.of(
@@ -327,11 +315,10 @@ public class StockOperationService implements StockOperationUseCase {
     }
 
     /**
-     * Emite el aviso de stock bajo cuando el disponible queda por debajo del
-     * umbral del repuesto.
+     * Emits a low-stock alert when available stock drops below the configured threshold.
      *
-     * <p>El aviso lleva el nivel en el momento del movimiento: un cambio de
-     * umbral posterior no reescribe la historia.
+     * <p>The notification records the level at the moment of the movement: subsequent
+     * threshold adjustments do not alter historical notifications.
      */
     private void avisarSiStockBajo(TenantId tenantId, SparePartId partId, BranchId branchId,
                                    List<StockLot> lotes) {
@@ -370,12 +357,12 @@ public class StockOperationService implements StockOperationUseCase {
         return lotes.stream().mapToInt(StockLot::getAvailableQuantity).sum();
     }
 
-    /** Unidades reservadas en los lotes. */
+    /** Sums reserved units across lots. */
     private int reservadas(List<StockLot> lotes) {
         return lotes.stream().mapToInt(StockLot::getReservedQuantity).sum();
     }
 
-    /** Consume los lotes mas antiguos primero: FIFO. */
+    /** Consumes oldest lots first: FIFO. */
     private void consumir(List<StockLot> lotes, int unidades) {
         int restantes = unidades;
         for (StockLot lote : lotes) {
@@ -391,7 +378,7 @@ public class StockOperationService implements StockOperationUseCase {
         }
     }
 
-    /** Consume unidades YA RESERVADAS de los lotes mas antiguos primero. */
+    /** Consumes ALREADY RESERVED units from oldest lots first. */
     private void consumirReservado(List<StockLot> lotes, int unidades) {
         int restantes = unidades;
         for (StockLot lote : lotes) {
@@ -407,7 +394,7 @@ public class StockOperationService implements StockOperationUseCase {
         }
     }
 
-    /** Reserva unidades de los lotes mas antiguos primero. */
+    /** Reserves units from oldest lots first. */
     private void reservar(List<StockLot> lotes, int unidades) {
         int restantes = unidades;
         for (StockLot lote : lotes) {
@@ -423,7 +410,7 @@ public class StockOperationService implements StockOperationUseCase {
         }
     }
 
-    /** Devuelve unidades reservadas de los lotes mas antiguos primero. */
+    /** Releases reserved units back to oldest lots first. */
     private void liberar(List<StockLot> lotes, int unidades) {
         int restantes = unidades;
         for (StockLot lote : lotes) {

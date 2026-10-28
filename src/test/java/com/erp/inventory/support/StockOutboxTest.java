@@ -26,12 +26,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * El evento de stock viaja con el cambio que lo origina.
+ * Integration tests verifying transactional outbox persistence and dispatching.
  *
- * <p>Publicar el evento DENTRO de la transaccion que confirma el cambio de
- * stock es justo lo que la bandeja evita: el bus podria recibir un evento que
- * la base de datos no llego a confirmar, y un fallo del bus perderia el
- * evento sin revertir el stock.
+ * <p>Ensures domain events and stock state transitions commit atomically in the database,
+ * and background relays dispatch outbox events with at-least-once delivery semantics.
  */
 @SpringBootTest
 class StockOutboxTest extends AbstractPostgresIntegrationTest {

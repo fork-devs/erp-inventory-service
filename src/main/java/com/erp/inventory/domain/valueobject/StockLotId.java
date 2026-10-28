@@ -5,7 +5,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Identificador de un lote de stock.
+ * Value object representing the identifier of a stock lot.
  */
 public final class StockLotId implements Serializable {
 

@@ -4,11 +4,11 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
- * Alta de un movimiento manual de stock.
+ * Command to register a manual stock movement.
  *
- * <p>La ENTRADA ({@code IN}) lleva el coste unitario real con el que se
- * compro: es el que abre el lote y el que valora el stock. Las demas
- * operaciones no lo llevan: su valor sale de los lotes que consumen.
+ * <p>An incoming movement ({@code IN}) carries the actual unit cost at which it
+ * was purchased: this opens the lot and values the stock. Other operations
+ * do not carry unit cost: their value is derived from the lots they consume.
  */
 public record RegisterStockMovementCommand(
         UUID tenantId,

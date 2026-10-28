@@ -4,27 +4,25 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 /**
- * Configuracion de la demarcacion transaccional.
+ * Configuration for transactional demarcation and advice precedence.
  *
- * <p>El orden de los advice importa: el interceptor transaccional de Spring y
- * el aspecto que establece el contexto de taller compiten por el mismo
- * orden. Sin fijarlo, el orden es indeterminado y el {@code SET LOCAL} puede
- * ejecutarse FUERA de la transaccion, donde no tiene efecto: la consulta se
- * ejecutaria sin el filtro de aislamiento.
+ * <p>Advice ordering is critical: Spring's transaction interceptor and the
+ * tenant context aspect compete for execution precedence. Without explicit ordering,
+ * the order is indeterminate, which could cause {@code SET LOCAL} to execute OUTSIDE
+ * an active transaction where it has no effect, allowing queries to run without isolation filters.
  *
- * <p>Con el interceptor transaccional en el orden 0 y el aspecto en el
- * orden 1, el aspecto queda DENTRO de la transaccion, que es donde el
- * {@code SET LOCAL} es aplicable.
+ * <p>By placing the transaction interceptor at order 0 and the RLS aspect at order 1,
+ * the tenant aspect is guaranteed to execute INSIDE the transaction boundary where
+ * {@code SET LOCAL} is scoped and effective.
  */
 @Configuration
 @EnableTransactionManagement(order = 0)
 public class PersistenceConfig {
 
     /**
-     * Orden del aspecto de Row-Level Security. En Spring, un valor de orden
-     * MENOR significa mayor precedencia y, por tanto, un advice EXTERIOR. El
-     * aspecto debe ser INTERIOR al interceptor transaccional, de modo que su
-     * orden sea mayor que el de este ultimo.
+     * Precedence order for the Row-Level Security tenant aspect. In Spring AOP,
+     * a LOWER order value indicates higher precedence (OUTER advice). The tenant RLS
+     * aspect must be INNER to the transaction interceptor, hence a higher order value.
      */
     public static final int TENANT_RLS_ASPECT_ORDER = 1;
 }

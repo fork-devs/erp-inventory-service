@@ -13,16 +13,15 @@ public interface StockMovementRepositoryPort {
     StockMovement save(StockMovement movement);
 
     /**
-     * Reclama la clave de idempotencia registrando el movimiento.
+     * Claims the idempotency key by inserting the movement.
      *
-     * <p>La reclamacion es la propia insercion: la unicidad de
-     * {@code (tenant_id, idempotency_key)} arbitra entre las peticiones
-     * concurrentes con la misma clave. Entre consultar la clave y registrar el
-     * movimiento hay una ventana en la que otra peticion con la misma clave
-     * pasaria la comprobacion, y las dos registrarian su movimiento.
+     * <p>The insertion itself constitutes the claim: the unique constraint on
+     * {@code (tenant_id, idempotency_key)} arbitrates between concurrent requests
+     * with the same key. A check-then-insert approach creates a race window where
+     * concurrent requests both pass the check and attempt to insert duplicates.
      *
-     * @return vacio si la reclamacion es nueva; el movimiento ya registrado si
-     *         la clave estaba reclamada.
+     * @param movement movement to register
+     * @return empty if newly inserted; the existing movement if the key was already claimed.
      */
     Optional<StockMovement> claim(StockMovement movement);
 

@@ -4,11 +4,11 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Evento de stock: el disponible de un repuesto ha quedado por debajo de su
- * umbral de reposicion.
+ * Stock domain event: available stock for a spare part has dropped below
+ * its minimum reorder threshold.
  *
- * <p>El aviso lleva el nivel en el momento del movimiento: un cambio de
- * umbral posterior no reescribe la historia.
+ * <p>The notification records stock level at the moment of the movement: subsequent
+ * threshold adjustments do not alter historical notifications.
  */
 public class StockLowEvent implements DomainEvent {
 

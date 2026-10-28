@@ -25,10 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * La confirmacion consume la reserva, y solo la reserva.
- *
- * <p>Confirmar en silencio seria peor que fallar: el stock quedaria reservado
- * para siempre y la bitacora anotaria un consumo que no ha ocurrido.
+ * Integration tests verifying that commit operations properly consume reservations.
  */
 @SpringBootTest
 class StockCommitTest extends AbstractPostgresIntegrationTest {
@@ -87,7 +84,7 @@ class StockCommitTest extends AbstractPostgresIntegrationTest {
         stockUseCase.commit(new ReserveStockCommand(tenantId, repuesto, sucursal, 3,
                 UUID.randomUUID(), "commit-" + UUID.randomUUID()));
 
-        // Con OTRA clave: la reserva ya no tiene unidades reservadas.
+        // With a different key: reservation has no remaining units to commit.
         assertThrows(InsufficientStockException.class, () -> stockUseCase.commit(
                         new ReserveStockCommand(tenantId, repuesto, sucursal, 3,
                                 UUID.randomUUID(), "commit-" + UUID.randomUUID())),
@@ -112,10 +109,9 @@ class StockCommitTest extends AbstractPostgresIntegrationTest {
                 UUID.randomUUID(), "reserva-" + UUID.randomUUID()));
         TenantContextHolder.clear();
 
-        // El taller A intenta confirmar la reserva del taller B: no la ve.
+        // Workshop A attempts to commit Workshop B's reservation: cannot access it.
         TenantContextHolder.setTenantId(tenantId);
-        // El repuesto del otro taller no existe para este: la politica de
-        // aislamiento no le muestra ni una fila.
+        // The other workshop's spare part is invisible: RLS policy returns 0 rows.
         assertThrows(com.erp.inventory.domain.exception.DomainException.class,
                 () -> stockUseCase.commit(
                         new ReserveStockCommand(tenantId, otroRepuesto.id(), otraSucursal.id(), 3,

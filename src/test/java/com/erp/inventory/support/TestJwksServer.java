@@ -20,13 +20,11 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Emisor de credenciales de prueba: sirve un conjunto de claves publicas por
- * HTTP y firma tokens con la clave privada correspondiente.
+ * Test credentials issuer: exposes an HTTP JWKS public key set endpoint
+ * and signs JWT tokens with the corresponding RSA private key.
  *
- * <p>El servicio de fleet valida el token contra el JWKS del servicio de
- * autenticacion. Para probar el aislamiento entre talleres hace falta un
- * token verificado de verdad, de modo que los tests levantan su propio emisor
- * en lugar de mockear la validacion.
+ * <p>Used in integration tests to verify JWT validation and multi-tenant isolation
+ * with realistically signed tokens rather than mocks.
  */
 public final class TestJwksServer {
 
@@ -76,7 +74,11 @@ public final class TestJwksServer {
     }
 
     /**
-     * Firma un token de acceso para el taller indicado, con los roles dados.
+     * Signs a JWT access token for the specified workshop tenant with the given roles.
+     *
+     * @param tenantId workshop tenant identifier
+     * @param roles list of assigned roles
+     * @return signed JWT token string
      */
     public static String signToken(UUID tenantId, List<String> roles) {
         start();

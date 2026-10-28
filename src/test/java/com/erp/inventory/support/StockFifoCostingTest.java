@@ -25,10 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * El saldo se calcula por lotes, en orden FIFO, y con su valor.
- *
- * <p>Sin lotes, el saldo dice cuantas unidades hay, pero no cuanto valen: el
- * coste de lo consumido se pierde en el momento en que se consume.
+ * Integration tests verifying lot-based FIFO costing and valuation logic.
  */
 @SpringBootTest
 class StockFifoCostingTest extends AbstractPostgresIntegrationTest {
@@ -83,19 +80,15 @@ class StockFifoCostingTest extends AbstractPostgresIntegrationTest {
         entrada(5, "10.00");
         entrada(5, "20.00");
 
-        // Se reserva 7 unidades: el saldo debe reflejar que el lote mas
-        // antiguo (a 10) se consumio primero.
+        // Reserving 7 units: balance must reflect that the oldest lot (at 10) is consumed first.
         stockUseCase.reserve(new ReserveStockCommand(tenantId, repuesto, sucursal, 7,
                 UUID.randomUUID(), "reserva-" + UUID.randomUUID()));
 
         StockBalanceResult saldo = saldo();
 
         assertEquals(3, saldo.availableStock());
-        // Quedan 3 unidades del lote viejo (a 10) y ninguna del nuevo: el
-        // valor lo confirma.
-        // FIFO consume primero el lote MAS ANTIGUO: se van las 5 unidades a
-        // 10 y 2 de las 5 a 20. Quedan 3 unidades a 20, y reservadas valen
-        // 5x10 + 2x20.
+        // FIFO consumes the OLDEST lot first: all 5 units at 10 and 2 of 5 at 20.
+        // 3 units at 20 remain available, and reserved value equals 5*10 + 2*20.
         assertEquals(0, new BigDecimal("60.00").compareTo(saldo.availableValue()),
                 "El consumo FIFO deja las unidades mas RECIENTES, con su coste mas alto");
         assertEquals(0, new BigDecimal("90.00").compareTo(saldo.reservedValue()),

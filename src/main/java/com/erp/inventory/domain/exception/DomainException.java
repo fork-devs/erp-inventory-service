@@ -1,10 +1,10 @@
 package com.erp.inventory.domain.exception;
 
 /**
- * Error de dominio, con un codigo estable por familia, legible por maquina.
+ * Base domain exception providing a stable, machine-readable error code per family.
  *
- * <p>El codigo es lo que el cliente consume: el mensaje se puede reescribir,
- * el codigo no cambia sin que sea un cambio incompatible.
+ * <p>The error code is what clients consume: messages can be rewritten without breaking contracts,
+ * whereas code changes constitute breaking changes.
  */
 public class DomainException extends RuntimeException {
 

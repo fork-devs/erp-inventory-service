@@ -7,18 +7,17 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Mensaje pendiente de publicar en el bus de eventos.
+ * Pending message in the outbox queue waiting to be published to the event bus.
  *
- * <p>El identificador del evento viaja en el mensaje y no se regenera en cada
- * reintento, de modo que un consumidor pueda deduplicar: la entrega es al
- * menos una vez, y el identificador es lo que hace la deduplicacion posible.
+ * <p>The event identifier is embedded in the message and is not regenerated across retries,
+ * enabling consumers to deduplicate: delivery guarantees are at-least-once, and the persistent
+ * event ID provides idempotency on consumption.
  */
 public class StockOutboxMessage implements Serializable {
 
     /**
-     * Escala de esperas entre reintentos, en segundos. Es creciente y llega
-     * hasta 24 horas, que es la ventana de recuperacion prevista para un
-     * proveedor en modo degradado.
+     * Exponential backoff delays between retries in seconds, capping at 24 hours
+     * to accommodate temporary provider degradation windows.
      */
     private static final long[] BACKOFF_SECONDS = {5, 30, 300, 1800, 7200, 28800, 86400};
 
@@ -78,10 +77,9 @@ public class StockOutboxMessage implements Serializable {
     }
 
     /**
-     * Registra un fallo de publicacion: incrementa el contador, guarda el
-     * error y programa el proximo reintento con una espera creciente. Al
-     * alcanzar el maximo de intentos, el mensaje pasa a cola de muertos y deja
-     * de reintentarse solo, pero se conserva.
+     * Records a publishing failure: increments attempt count, saves error detail,
+     * and schedules the next retry using exponential backoff. Upon reaching max attempts,
+     * the message transitions to DEAD_LETTER and stops auto-retrying while remaining persisted.
      */
     public void recordFailure(String error, int maxAttempts, Duration maxDelay) {
         this.attempts++;
@@ -98,8 +96,7 @@ public class StockOutboxMessage implements Serializable {
     }
 
     /**
-     * Devuelve el mensaje a la cola de pendientes, con el contador
-     * restablecido, para que vuelva a intentarse.
+     * Re-queues the message as PENDING with attempts reset to 0 for manual retry.
      */
     public void reactivate() {
         this.attempts = 0;
@@ -109,8 +106,7 @@ public class StockOutboxMessage implements Serializable {
     }
 
     /**
-     * Espera hasta el proximo intento. Es creciente con el numero de
-     * intentos y nunca supera el maximo configurado.
+     * Computes the delay until the next retry attempt based on exponential backoff, capped by maxDelay.
      */
     public Duration nextDelay(Duration maxDelay) {
         int index = Math.min(Math.max(attempts - 1, 0), BACKOFF_SECONDS.length - 1);

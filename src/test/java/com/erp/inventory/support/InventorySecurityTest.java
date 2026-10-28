@@ -17,15 +17,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * La API exige un token verificado, y el taller lo decide el token.
+ * Integration tests verifying authentication and authorization perimeter enforcement.
  *
- * <p>El servicio publicaba el comodin {@code /api/v1/**} en permitAll y leia
- * el taller de la cabecera {@code X-Tenant-ID}: cualquiera que alcanzara el
- * servicio podia registrar movimientos, reservar stock y leer saldos de
- * cualquier taller, sin token.
- *
- * <p>Ver docs/doc-estado-implementacion.md, hallazgos P0 5.1, P0 5.2, P0 5.4 y
- * P1 6.19.
+ * <p>Endpoints require a valid JWT token, with tenant context derived exclusively
+ * from token claims rather than unauthenticated request headers.
  */
 @SpringBootTest
 @AutoConfigureMockMvc

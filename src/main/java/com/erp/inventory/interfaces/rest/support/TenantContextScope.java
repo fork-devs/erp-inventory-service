@@ -5,11 +5,10 @@ import com.erp.inventory.infrastructure.persistence.rls.TenantContextHolder;
 import java.util.UUID;
 
 /**
- * Ambito del contexto de taller de una operacion.
+ * Scope guard for the workshop tenant context of an operation.
  *
- * <p>El contexto lo establece el principal autenticado y se restaura al
- * terminar la operacion, de modo que no se filtra a la siguiente peticion que
- * reutilice el mismo hilo.
+ * <p>Sets the tenant context and restores previous state upon closing (via {@link AutoCloseable}),
+ * ensuring the context does not leak into subsequent operations on the same pooled thread.
  */
 public final class TenantContextScope implements AutoCloseable {
 

@@ -1,16 +1,14 @@
 package com.erp.inventory.domain.port;
 
 /**
- * Limite transaccional de una operacion de negocio.
+ * Transactional boundary abstraction for business operations.
  *
- * <p>Es una abstraccion del dominio, sin dependencias de framework, para que
- * la capa de aplicacion pueda exigir que una operacion que escribe en varios
- * repositorios se confirme de forma conjunta sin importar como se
- * implementa la transaccion.
+ * <p>A domain abstraction free of framework dependencies, allowing the application
+ * layer to enforce atomic commits across multiple repository writes regardless
+ * of the underlying transaction management implementation.
  *
- * <p>Sin el, cada llamada a un repositorio abre su propia transaccion: dos
- * escrituras consecutivas son dos transacciones distintas, y una operacion
- * que necesita ser atomica no lo puede ser.
+ * <p>Without this boundary, individual repository calls could each execute in separate
+ * transactions, breaking atomicity across dependent operations.
  */
 public interface UnitOfWork {
 

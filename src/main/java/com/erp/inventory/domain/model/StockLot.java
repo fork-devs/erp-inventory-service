@@ -11,17 +11,16 @@ import java.time.Instant;
 import java.util.Objects;
 
 /**
- * Lote de stock: las unidades que entraron juntas, con su coste real.
+ * Stock lot: units received together, tracking their actual unit purchase cost.
  *
- * <p>El saldo NO es la suma de los movimientos: eso dice cuántas unidades hay,
- * pero no cuánto valen. El coste de lo consumido se pierde en el momento en
- * que se consume, y el coste medio mezcla compras antiguas con recientes.
- * Cada entrada abre un lote, y las salidas y las reservas **consumen primero
- * el lote más antiguo** (FIFO).
+ * <p>Stock balance is NOT merely the sum of movements: summing indicates quantity,
+ * but not valuation. Consumed unit costs are lost once consumed, and average costing
+ * blends older and newer purchases. Each incoming movement opens a lot, and outgoing
+ * movements and reservations **consume the oldest lot first** (FIFO).
  *
- * <p>La reserva se marca SOBRE el lote ({@code reservedQuantity}): así el
- * valor del stock reservado sale de la misma fila que el disponible, sin
- * tener que reconstruir el reparto por fechas.
+ * <p>Reservations are tracked directly ON the lot ({@code reservedQuantity}): this allows
+ * reserved stock valuation to be derived from the same row as available stock without
+ * reconstructing date-based allocations.
  */
 public class StockLot implements Serializable {
 
@@ -61,15 +60,16 @@ public class StockLot implements Serializable {
                 quantity, 0, unitCost, entryDate);
     }
 
-    /** Unidades del lote que todavia no estan reservadas. */
+    /** Units in this lot that are not yet reserved. */
     public int getAvailableQuantity() {
         return quantity - reservedQuantity;
     }
 
     /**
-     * Reserva unidades de este lote.
+     * Reserves units from this lot.
      *
-     * @throws IllegalStateException si no quedan unidades libres.
+     * @param units quantity to reserve
+     * @throws IllegalStateException if there are insufficient unreserved units.
      */
     public void reserve(int units) {
         if (units <= 0 || units > getAvailableQuantity()) {
@@ -79,7 +79,9 @@ public class StockLot implements Serializable {
     }
 
     /**
-     * Devuelve unidades reservadas de este lote.
+     * Releases reserved units back to this lot.
+     *
+     * @param units quantity to release
      */
     public void release(int units) {
         if (units <= 0 || units > reservedQuantity) {
@@ -89,7 +91,9 @@ public class StockLot implements Serializable {
     }
 
     /**
-     * Consume unidades LIBRES del lote.
+     * Consumes unreserved units directly from the lot.
+     *
+     * @param units quantity to consume
      */
     public void consume(int units) {
         if (units <= 0 || units > getAvailableQuantity()) {
@@ -99,8 +103,10 @@ public class StockLot implements Serializable {
     }
 
     /**
-     * Consume unidades YA RESERVADAS del lote: la reserva se convierte en
-     * consumo real.
+     * Consumes previously reserved units from the lot, converting the reservation
+     * into actual consumption.
+     *
+     * @param units quantity to consume
      */
     public void consumeReserved(int units) {
         if (units <= 0 || units > reservedQuantity) {
@@ -110,12 +116,12 @@ public class StockLot implements Serializable {
         this.quantity = this.quantity - units;
     }
 
-    /** Valor de las unidades todavia libres del lote. */
+    /** Valuation of unreserved units remaining in this lot. */
     public BigDecimal getAvailableValue() {
         return unitCost.multiply(BigDecimal.valueOf(getAvailableQuantity()));
     }
 
-    /** Valor de las unidades reservadas del lote. */
+    /** Valuation of reserved units in this lot. */
     public BigDecimal getReservedValue() {
         return unitCost.multiply(BigDecimal.valueOf(reservedQuantity));
     }

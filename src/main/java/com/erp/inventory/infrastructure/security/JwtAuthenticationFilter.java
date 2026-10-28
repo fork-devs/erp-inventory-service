@@ -23,16 +23,15 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Valida el token de acceso que reenvia el borde y establece el contexto de
- * taller.
+ * Validates the JWT access token forwarded by the API gateway and establishes
+ * the tenant context.
  *
- * <p>El tenant se deriva EXCLUSIVAMENTE del claim {@code tenant_id} de un
- * token verificado. La cabecera {@code X-Tenant-ID} es una pista: si viene, se
- * contrasta con el tenant del token y la peticion se rechaza cuando no
- * coinciden.
+ * <p>The tenant is derived EXCLUSIVELY from the {@code tenant_id} claim of a verified
+ * token. The {@code X-Tenant-ID} header is cross-checked against the token; if present
+ * and mismatched, the request is rejected immediately.
  *
- * <p>Un token sin firma verificable, expirado o sin taller declarado se
- * rechaza: el servicio no opera sin un principal verificado.
+ * <p>Tokens without a valid signature, expired tokens, or tokens lacking a declared tenant
+ * are rejected to ensure operations run strictly with a verified principal.
  */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -53,8 +52,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String tenantHeader = request.getHeader("X-Tenant-ID");
         String traceId = trazaDe(request);
 
-        // La traza y el taller van al MDC: cada linea del registro de la
-        // peticion dice de quien es y de que traza forma parte.
+        // Populate trace ID and tenant context into MDC for structured log correlation.
         org.slf4j.MDC.put("trace_id", traceId);
         org.slf4j.MDC.put("tenant_id", "-");
 
@@ -142,10 +140,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Identificador de traza de la peticion.
+     * Extracts or generates the trace identifier for request tracing.
      *
-     * <p>El borde propaga la traza; si no llega, se genera una, para que
-     * cada peticion tenga una traza con la que poder seguirla.
+     * <p>Propagates the incoming trace header, or generates a new UUID if missing.
      */
     private String trazaDe(HttpServletRequest request) {
         String traza = request.getHeader("X-Trace-ID");

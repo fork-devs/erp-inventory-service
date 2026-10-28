@@ -14,16 +14,15 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * Seguridad perimetral del servicio de inventario.
+ * Perimeter security configuration for the inventory service.
  *
- * <p>Los endpoints de negocio NO son publicos: exigen un token de acceso
- * verificado, del que se deriva el taller. Antes el comodin
- * {@code /api/v1/**} estaba en permitAll, con lo que cualquiera podia registrar
- * movimientos, reservar stock de cualquier taller y leer sus saldos, sin
- * autenticarse.
+ * <p>Business endpoints are NOT public: they require a verified access token
+ * from which the tenant context is derived. Previously, the wildcard
+ * {@code /api/v1/**} was configured with permitAll, allowing unauthenticated requests
+ * to register movements, reserve stock across tenants, and query balances.
  *
- * <p>La negociación CORS se delega a Kong API Gateway para evitar duplicación
- * de cabeceras Access-Control-Allow-* hacia clientes web.
+ * <p>CORS negotiation is delegated to the Kong API Gateway to prevent duplicate
+ * Access-Control-Allow-* headers from reaching web clients.
  */
 @Configuration
 @EnableWebSecurity

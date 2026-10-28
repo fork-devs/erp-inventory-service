@@ -6,14 +6,12 @@ import org.springframework.boot.health.contributor.Status;
 import org.springframework.stereotype.Component;
 
 /**
- * Disponibilidad del servicio.
+ * Service readiness indicator.
  *
- * <p>Comprueba de verdad su dependencia: la base de datos. No se limita a decir
- * que esta configurada: se consulta de verdad, de modo que un pool roto se
- * distingue de un servicio sano.
+ * <p>Validates core infrastructure dependencies (e.g., database connectivity)
+ * by executing actual operations, ensuring broken connection pools are accurately distinguished.
  *
- * <p>El servicio informa de NO disponible cuando la comprobacion falla: es lo
- * que un orquestador necesita para dejar de mandarle trafico.
+ * <p>Reports OUT_OF_SERVICE / DOWN when checks fail, signaling orchestrators to stop routing traffic.
  */
 @Component("inventoryReadiness")
 public class ReadinessIndicator implements HealthIndicator {

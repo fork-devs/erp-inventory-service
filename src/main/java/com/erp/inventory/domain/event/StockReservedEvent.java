@@ -4,11 +4,11 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Evento de stock: el taller reservo unidades para una orden de trabajo.
+ * Stock domain event: workshop reserved units for a work order.
  *
- * <p>El identificador del evento viaja en el mensaje y no se regenera en cada
- * reintento, de modo que un consumidor pueda deduplicar: la entrega es al
- * menos una vez, y el identificador es lo que hace la deduplicacion posible.
+ * <p>The event identifier travels within the message and is not regenerated across retries,
+ * enabling consumers to deduplicate: delivery is at-least-once, and the event identifier
+ * enables effective deduplication.
  */
 public class StockReservedEvent implements DomainEvent {
 

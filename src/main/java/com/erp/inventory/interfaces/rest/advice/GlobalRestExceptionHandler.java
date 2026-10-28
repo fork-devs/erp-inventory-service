@@ -24,16 +24,14 @@ import java.net.URI;
 import java.util.UUID;
 
 /**
- * Manejo global de los errores de la API.
+ * Global REST exception handler mapping domain and framework exceptions to RFC 9457 {@code ProblemDetail}.
  *
- * <p>El cuerpo del error es un {@code ProblemDetail} (RFC 9457) con un
- * <strong>codigo estable por familia</strong>: el mensaje se puede reescribir,
- * el codigo no cambia sin que sea un cambio incompatible. El error lleva
- * tambien el <strong>taller</strong>, para que el frontend pueda mostrarlo sin
- * adivinar.
+ * <p>Provides a <strong>stable, machine-readable error code</strong> per family: error messages
+ * can be refined without breaking client contracts, whereas code values remain stable. Error
+ * responses also include the tenant context when available.
  *
- * <p>El error interno no expone ni la clase de la excepcion ni su mensaje: el
- * diagnostico va al registro, que es del operador.
+ * <p>Internal 500 errors do not expose internal exception classes or stack traces to callers:
+ * diagnostics are logged for operator observability.
  */
 @Hidden
 @RestControllerAdvice
@@ -69,8 +67,7 @@ public class GlobalRestExceptionHandler {
     }
 
     /**
-     * La denegacion por rol es una decision de autorizacion, no un fallo de la
-     * operacion: se responde 403 y no 500.
+     * Role denial represents an authorization decision: mapped to HTTP 403 Forbidden.
      */
     @ExceptionHandler(AccessDeniedException.class)
     public ProblemDetail handleAccessDenied(AccessDeniedException ex, WebRequest request) {
@@ -85,9 +82,8 @@ public class GlobalRestExceptionHandler {
     }
 
     /**
-     * Una ruta que no existe es un 404, no un error del servidor: el cliente
-     * ha pedido algo que no esta, y con un 500 pensaria que el servicio esta
-     * roto y reintentaria.
+     * Non-existent endpoints map to HTTP 404 Not Found to prevent clients
+     * from mistaking route errors for temporary server outages.
      */
     @ExceptionHandler(NoResourceFoundException.class)
     public ProblemDetail handleNoResource(NoResourceFoundException ex, WebRequest request) {
@@ -105,8 +101,8 @@ public class GlobalRestExceptionHandler {
     }
 
     /**
-     * Cualquier otra excepcion: se REGISTRA con su traza y se responde con
-     * un error generico. La traza va al registro, que es del operador.
+     * Catches any unhandled exceptions, logging stack traces for operational diagnostics
+     * while returning a sanitized generic problem detail response.
      */
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleGeneral(Exception ex, WebRequest request) {

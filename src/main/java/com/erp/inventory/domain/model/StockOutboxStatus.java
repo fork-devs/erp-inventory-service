@@ -1,20 +1,20 @@
 package com.erp.inventory.domain.model;
 
 /**
- * Estado de un mensaje de la bandeja de salida.
+ * Status of an outbox message.
  *
- * <p>El estado es explicito y no un booleano: con un booleano no se puede
- * distinguir un mensaje recien creado de uno que lleva horas fallando, ni
- * reconocer uno que ya no va a prosperar.
+ * <p>State transitions are explicit rather than boolean: a boolean flag cannot
+ * distinguish between newly queued messages, repeatedly failing messages,
+ * or permanently dead-lettered entries.
  */
 public enum StockOutboxStatus {
 
-    /** Pendiente de publicar, con su proximo reintento programado. */
+    /** Pending publication with next attempt scheduled. */
     PENDING,
 
-    /** Publicado en el bus. */
+    /** Successfully published to the event bus. */
     PUBLISHED,
 
-    /** Agotado sus intentos: ya no se reintenta solo, pero se conserva. */
+    /** Exhausted all retry attempts; preserved without automatic retry. */
     DEAD_LETTER
 }
