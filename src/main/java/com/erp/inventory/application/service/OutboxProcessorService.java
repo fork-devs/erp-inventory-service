@@ -13,22 +13,19 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Despacha los mensajes pendientes de la bandeja de salida.
+ * Dispatches pending outbox messages to the event bus.
  *
- * <p>Tres propiedades que el relay anterior no tenia:
+ * <p>Key architectural properties:
  *
  * <ul>
- *   <li>Un mensaje que falla <strong>no bloquea</strong> el resto de la cola.
- *       Antes, un solo mensaje envenenado detenia el lote entero de forma
- *       permanente, porque la cola se leia ordenada por fecha de creacion y el
- *       fallido siempre era el primero.</li>
- *   <li>Cada fallo <strong>queda registrado</strong> con su error, su numero
- *       de intento y la espera hasta el proximo. Antes la excepcion se
- *       tragaba sin dejar rastro.</li>
- *   <li>La publicacion ocurre <strong>fuera</strong> de la transaccion de
- *       negocio que confirmo el cambio, y con la transaccion de la bandeja
- *       de salida ya cerrada. Un fallo de publicacion no puede deshacer un
- *       cambio de negocio ya confirmado.</li>
+ *   <li>A failing message <strong>does not block</strong> the rest of the queue.
+ *       Previously, a single poison pill message permanently halted the entire batch
+ *       because the queue was ordered by creation timestamp, keeping the failed one at the front.</li>
+ *   <li>Each failure <strong>is recorded</strong> with its error, attempt count,
+ *       and backoff delay until the next retry. Previously, exceptions were swallowed silently.</li>
+ *   <li>Publishing occurs <strong>outside</strong> the business transaction that committed the change,
+ *       and after the outbox transaction has closed. A publisher failure cannot roll back an already
+ *       committed business state transition.</li>
  * </ul>
  */
 public class OutboxProcessorService implements ProcessOutboxMessagesUseCase {
@@ -55,9 +52,9 @@ public class OutboxProcessorService implements ProcessOutboxMessagesUseCase {
 
     @Override
     public int processUnpublishedMessages(int batchSize) {
-        // La lectura con reclamacion de la fila se hace en su propia
-        // transaccion, que se cierra al salir de este metodo. La publicacion,
-        // por tanto, ya no forma parte de ninguna transaccion.
+        // Row claiming and locking occurs within its own transaction,
+        // which closes upon exiting this block. Publishing is therefore
+        // decoupled from any database transaction.
         List<StockOutboxMessage> messages = unitOfWork.callInTransaction(
                 () -> outboxRepositoryPort.findPending(Instant.now(), batchSize));
 
@@ -69,8 +66,8 @@ public class OutboxProcessorService implements ProcessOutboxMessagesUseCase {
                 unitOfWork.runInTransaction(() -> outboxRepositoryPort.save(message));
                 published++;
             } catch (Exception e) {
-                // Un mensaje fallido no detiene el lote: se registra y se
-                // reprograma, y el siguiente mensaje se despacha igualmente.
+                // A failed message does not halt the batch: it is recorded and rescheduled,
+                // allowing subsequent messages to proceed.
                 log.warn("[OUTBOX-RELAY] No se pudo publicar el evento {} ({}). Intento {}/{}: {}",
                         message.getEventType(), message.getId(), message.getAttempts() + 1, maxAttempts, e.getMessage());
                 message.recordFailure(e.getMessage(), maxAttempts, maxDelay);

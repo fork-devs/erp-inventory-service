@@ -17,7 +17,7 @@ public class StockMovement implements Serializable {
     private final Quantity quantity;
     private final UUID referenceId;
     private final IdempotencyKey idempotencyKey;
-    /** Coste real de la operacion. Es informativo: la valoracion sale de los lotes. */
+    /** Actual unit cost of the operation. Informational only: stock valuation is derived from lots. */
     private final BigDecimal unitCost;
     private final Instant createdAt;
 

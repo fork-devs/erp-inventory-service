@@ -11,20 +11,18 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Acceso a los lotes de stock.
+ * Spring Data JPA repository for stock lots.
  *
- * <p>El bloqueo de los lotes es lo que convierte la comprobacion del
- * disponible en una GARANTIA: dos reservas concurrentes del mismo repuesto se
- * serializan, y la segunda ve el stock ya descontado cuando obtiene el
- * bloqueo.
+ * <p>Pessimistic locking guarantees that concurrent reservations for the same spare part
+ * serialize, ensuring the subsequent transaction reads updated stock levels upon acquiring the lock.
  */
 public interface SpringDataStockLotRepository extends JpaRepository<StockLotJpaEntity, UUID> {
 
     /**
-     * Lotes de un repuesto en una sucursal, bloqueados y en orden de entrada.
+     * Retrieves stock lots for a spare part at a branch, pessimistically locked in FIFO order.
      *
-     * <p>El bloqueo es por fila ({@code FOR UPDATE}) y no de tabla: las
-     * reservas de otros repuestos no se bloquean entre si.
+     * <p>Uses row-level locking ({@code FOR UPDATE}) rather than table locking, preventing
+     * contention between distinct spare parts.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT l FROM StockLotJpaEntity l "

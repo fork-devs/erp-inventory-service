@@ -6,11 +6,10 @@ import com.erp.inventory.infrastructure.persistence.rls.TenantContextHolder;
 import java.util.UUID;
 
 /**
- * Taller de la peticion en curso.
+ * Helper to retrieve the current request's workshop tenant ID.
  *
- * <p>El contexto lo establece el filtro de autenticacion a partir del token
- * verificado. La cabecera {@code X-Tenant-ID} es una pista que el filtro
- * contrasta con el token: nunca decide.
+ * <p>The context is established by the authentication filter from the verified token.
+ * The {@code X-Tenant-ID} header is only cross-checked; it never decides tenant identity on its own.
  */
 public final class CurrentTenant {
 

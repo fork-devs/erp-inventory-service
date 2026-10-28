@@ -46,8 +46,8 @@ public class ApplicationServiceConfig {
     }
 
     /**
-     * Relay de la bandeja de salida: publica los mensajes pendientes, con
-     * reintentos de espera creciente y cola de muertos.
+     * Outbox processor service bean: publishes pending messages with exponential
+     * backoff retries and dead-letter handling.
      */
     @Bean
     public OutboxProcessorService outboxProcessorService(StockOutboxRepositoryPort outboxRepositoryPort,
@@ -59,11 +59,11 @@ public class ApplicationServiceConfig {
     }
 
     /**
-     * Cliente del conjunto de claves del emisor de credenciales.
+     * JWKS key manager bean for the identity provider.
      *
-     * <p>La URL debe usar un esquema cifrado fuera del perfil de desarrollo
-     * local: descargar las claves en claro permite que cualquiera en el camino
-     * las sustituya y firme tokens que el servicio aceptaria.
+     * <p>The URL must use an encrypted scheme outside local development profiles:
+     * fetching keys over plaintext allows man-in-the-middle key substitution
+     * and illegitimate token forging.
      */
     @Bean
     public JwksKeyManager jwksKeyManager(

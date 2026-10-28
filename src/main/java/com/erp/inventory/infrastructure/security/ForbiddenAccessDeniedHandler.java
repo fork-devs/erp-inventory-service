@@ -12,12 +12,10 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Respuesta a una peticion con un principal que no tiene el rol declarado en
- * el endpoint: <strong>403 Forbidden</strong>.
+ * Handles requests where an authenticated principal lacks required roles: <strong>403 Forbidden</strong>.
  *
- * <p>La denegacion por rol es una decision de autorizacion y se distingue de
- * un fallo de la operacion: el cliente puede retry con otro rol, pero no con
- * la misma peticion.
+ * <p>Role denial is an authorization decision distinct from operational failures:
+ * clients cannot retry with identical privileges.
  */
 @Component
 public class ForbiddenAccessDeniedHandler implements AccessDeniedHandler {
@@ -26,9 +24,7 @@ public class ForbiddenAccessDeniedHandler implements AccessDeniedHandler {
     public void handle(HttpServletRequest request,
                        HttpServletResponse response,
                        AccessDeniedException accessDeniedException) throws java.io.IOException {
-        // El acceso denegado es un EVENTO de seguridad: se registra con el
-        // mismo esquema que el resto, para que se pueda consultar igual que
-        // los demas.
+        // Access denial is logged as a security audit event using the standard structured logging schema.
         com.erp.inventory.application.logging.SecurityEventLogger.registrar(
                 "ACCESO_DENEGADO",
                 com.erp.inventory.infrastructure.persistence.rls.TenantContextHolder.getTenantId(),

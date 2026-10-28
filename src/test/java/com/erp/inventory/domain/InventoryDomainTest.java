@@ -22,10 +22,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Los value objects y los modelos del dominio de inventario.
+ * Domain tests verifying inventory value objects and entity invariants.
  *
- * <p>Son la frontera de la entrada del usuario: normalizan lo que llega y
- * rechazan lo que no tiene sentido antes de que llegue a la base de datos.
+ * <p>Ensures user input is normalized and validated before reaching persistence layers.
  */
 class InventoryDomainTest {
 

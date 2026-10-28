@@ -6,12 +6,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Comprobacion real de la base de datos.
+ * Live database health verification indicator.
  *
- * <p>No basta con decir que hay una conexion configurada: se abre una, se
- * ejecuta una consulta y se cierra. Un pool roto se distingue de un servicio
- * sano, y es justo lo que un orquestador necesita para decidir si le manda
- * trafico.
+ * <p>Executes an actual query over a borrowed connection rather than simply checking
+ * configuration. This ensures that broken connection pools or database outages are
+ * detected accurately by orchestration and load-balancing components.
  */
 @Component("inventoryDatabase")
 public class DatabaseHealthIndicator implements HealthIndicator {

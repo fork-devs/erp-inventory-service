@@ -8,18 +8,21 @@ import com.erp.inventory.domain.valueobject.TenantId;
 import java.util.List;
 
 /**
- * Lotes de stock de un repuesto en una sucursal.
+ * Repository port for managing stock lots of a spare part at a branch.
  *
- * <p>El consumo es FIFO: los lotes se toman del mas antiguo al mas reciente.
- * Para que dos reservas concurrentes no puedan sobre-reservar, los lotes se
- * **bloquean** antes de calcular el disponible: la segunda reserva espera, y
- * cuando obtiene el bloqueo ve el stock ya descontado.
+ * <p>Consumption follows FIFO: lots are processed from oldest to newest.
+ * To prevent over-reservation across concurrent requests, lots are **pessimistically locked**
+ * before calculating available stock: subsequent requests wait for the lock and read updated stock.
  */
 public interface StockLotRepositoryPort {
 
     /**
-     * Lotes de un repuesto en una sucursal, **bloqueados** y en orden de
-     * entrada.
+     * Retrieves stock lots for a spare part at a branch, **pessimistically locked** and ordered by entry date.
+     *
+     * @param tenantId workshop tenant identifier
+     * @param sparePartId spare part identifier
+     * @param branchId branch identifier
+     * @return list of locked stock lots in FIFO order
      */
     List<StockLot> bloquearLotes(TenantId tenantId, SparePartId sparePartId, BranchId branchId);
 

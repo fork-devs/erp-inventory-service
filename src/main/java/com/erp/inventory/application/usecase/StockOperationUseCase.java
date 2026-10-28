@@ -9,11 +9,11 @@ import com.erp.inventory.application.dto.result.StockMovementResult;
 import java.util.UUID;
 
 /**
- * Operaciones de stock.
+ * Use case defining core stock operations.
  *
- * <p>La saga de la orden de trabajo tiene las TRES operaciones: reservar,
- * confirmar y liberar. Sin la confirmacion, una reserva aprobada nunca se
- * convertia en una salida real y el stock quedaba reservado para siempre.
+ * <p>The work order saga encompasses THREE operations: reserve, commit, and release.
+ * Without the commit operation, an approved reservation never transitioned into an actual
+ * consumption, leaving stock indefinitely reserved.
  */
 public interface StockOperationUseCase {
 
@@ -21,7 +21,7 @@ public interface StockOperationUseCase {
 
     StockMovementResult reserve(ReserveStockCommand command);
 
-    /** Confirma una reserva: el stock reservado se consume. */
+    /** Commits a reservation: permanently consumes reserved stock. */
     StockMovementResult commit(ReserveStockCommand command);
 
     StockMovementResult release(ReleaseStockCommand command);

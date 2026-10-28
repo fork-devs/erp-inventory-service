@@ -32,13 +32,12 @@ public class StockMovementPersistenceAdapter implements StockMovementRepositoryP
     }
 
     /**
-     * Reclama la clave de idempotencia con la propia insercion del movimiento.
+     * Claims the idempotency key directly via the movement insertion.
      *
-     * <p>La insercion lleva {@code ON CONFLICT DO NOTHING}: si la clave ya
-     * estaba reclamada, la base de datos la rechaza **sin abortar la
-     * transaccion**. Con una violacion de la unicidad capturada como
-     * excepcion, la transaccion quedaria abortada en PostgreSQL y la peticion
-     * que perdio la carrera no podria ni leer el resultado de la que la gano.
+     * <p>The INSERT uses {@code ON CONFLICT DO NOTHING}: if the key was already claimed,
+     * PostgreSQL rejects the insert **without aborting the active transaction**. Handling
+     * uniqueness violations through caught SQL exceptions would abort the PostgreSQL transaction,
+     * preventing the losing request from reading the existing record.
      */
     @Override
     public Optional<StockMovement> claim(StockMovement movement) {
@@ -61,7 +60,7 @@ public class StockMovementPersistenceAdapter implements StockMovementRepositoryP
                 java.sql.Timestamp.from(movement.getCreatedAt()));
 
         if (insertados == 1) {
-            // La reclamacion es nueva.
+            // The claim is newly inserted.
             return Optional.empty();
         }
 

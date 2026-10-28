@@ -11,20 +11,18 @@ public interface StockOutboxRepositoryPort {
     StockOutboxMessage save(StockOutboxMessage message);
 
     /**
-     * Mensajes pendientes de publicar, cuya fecha de proximo intento ya ha
-     * vencido. La reclamacion es exclusiva: dos llamadas concurrentes
-     * obtienen conjuntos disjuntos.
+     * Retrieves pending messages due for publication. Claiming is exclusive
+     * so that concurrent relay instances receive disjoint message sets.
      */
     List<StockOutboxMessage> findPending(Instant now, int limit);
 
     /**
-     * Mensajes agotados, que ya no se reintentan solos pero se conservan.
+     * Retrieves dead-lettered messages that are no longer automatically retried.
      */
     List<StockOutboxMessage> findDeadLettered(UUID tenantId, int limit);
 
     /**
-     * Devuelve un mensaje agotado a la cola de pendientes, con el contador de
-     * intentos restablecido.
+     * Reactivates a dead-lettered message, returning it to the pending queue with reset attempts.
      */
     StockOutboxMessage reactivate(UUID id);
 }

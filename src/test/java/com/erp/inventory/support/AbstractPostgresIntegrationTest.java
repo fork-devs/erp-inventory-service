@@ -5,11 +5,11 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 /**
- * Base de los tests de integracion del servicio de fleet.
+ * Base class for integration tests against embedded PostgreSQL.
  *
- * <p>Arranca PostgreSQL real en proceso y conecta la aplicacion con el rol de
- * ejecucion {@code erp_inventory_app}, que no es propietario de las tablas. Las
- * migraciones de Flyway las ejecuta el propietario.
+ * <p>Boots an embedded PostgreSQL instance and connects the application using the
+ * runtime role {@code erp_inventory_app}, which does not own the schema tables.
+ * Flyway migrations are executed by the schema owner.
  */
 @SpringBootTest
 public abstract class AbstractPostgresIntegrationTest {
@@ -33,17 +33,11 @@ public abstract class AbstractPostgresIntegrationTest {
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
         registry.add("spring.flyway.enabled", () -> "true");
 
-        // El servicio valida el token contra el JWKS del emisor de
-        // credenciales. Los tests levantan su propio emisor, de modo que los
-        // tokens que se usan estan realmente firmados.
+        // The service validates JWT tokens against the JWKS endpoint of the credentials issuer.
+        // Tests boot an embedded test JWKS server so that issued tokens are genuinely signed.
         registry.add("erp.auth.jwks-url", TestJwksServer::jwksUrl);
 
-        // El servicio llama al hub de integraciones para validar identidad y
-        // vehiculo. Los tests levantan su propio hub, de modo que se comprueba
-        // el cableado real y no una simulacion.
-        // El barrido de revalidacion recorre los talleres con registros
-        // pendientes: necesita el rol de plataforma, con su credencial
-        // separada de la de la aplicacion.
+        // Platform role configuration for background maintenance operations.
         registry.add("erp.platform-role.user", EmbeddedPostgresSupport::platformRole);
         registry.add("erp.platform-role.password", EmbeddedPostgresSupport::platformPassword);
 

@@ -9,17 +9,16 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Registro estructurado de los eventos de seguridad.
+ * Structured logger for security events.
  *
- * <p>El esquema es el MISMO que en el servicio de autenticacion:
+ * <p>The schema matches the authentication service:
  *
  * <pre>
  * evento=... tenant_id=... user_id=... trace_id=... resultado=... timestamp=...
  * </pre>
  *
- * <p>El esquema no admite contrasenas, tokens ni secretos: no hay ningun
- * parametro para ellos, de modo que no se pueden colar por descuido. Un
- * registro de auditoria con credenciales es un almacen de credenciales.
+ * <p>The schema does not accept passwords, tokens, or secrets: there are no parameters
+ * for them, preventing accidental leakage. An audit log containing credentials is a credential store.
  */
 public final class SecurityEventLogger {
 

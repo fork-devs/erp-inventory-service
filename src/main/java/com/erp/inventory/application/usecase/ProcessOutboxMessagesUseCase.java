@@ -1,7 +1,7 @@
 package com.erp.inventory.application.usecase;
 
 /**
- * Despacha los mensajes pendientes de la bandeja de salida.
+ * Dispatches pending messages from the outbox table to the event bus.
  */
 public interface ProcessOutboxMessagesUseCase {
 

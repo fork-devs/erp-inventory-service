@@ -8,27 +8,16 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 /**
- * Arranca una instancia real de PostgreSQL en proceso, para los tests que
- * necesitan verificar el comportamiento de la base de datos y no su
- * simulacion: Row-Level Security, restricciones NOT NULL y migraciones.
- *
- * <p>El entorno de ejecucion no dispone de Docker, de modo que Testcontainers
- * no es viable. {@code embedded-postgres} descarga y arranca una distribucion
- * real de PostgreSQL como proceso nativo.
- *
- * <p>Antes, el perfil de test usaba H2 con {@code ddl-auto: create-drop} y
- * Flyway desactivado: el esquema lo derivaba de las entidades, de modo que
- * una migracion alterada no se detectaba nunca, y la politica de aislamiento
- * no se ejecutaba jamas. Ese es el mismo defecto que se cerro en el servicio
- * de tenants.
+ * Boots an embedded PostgreSQL process for integration tests that require verifying
+ * actual PostgreSQL behavior (Row-Level Security, constraints, Flyway migrations).
  */
 public final class EmbeddedPostgresSupport {
 
-    /** Rol de ejecucion de la aplicacion: no es propietario de las tablas. */
+    /** Application runtime role: does not own database tables. */
     public static final String APP_ROLE = "erp_inventory_app";
     public static final String APP_PASSWORD = "erp_inventory_app_test_password";
 
-    /** Rol de plataforma: lo usa solo el barrido de revalidacion. */
+    /** Platform maintenance role for administrative jobs. */
     public static final String PLATFORM_ROLE = "erp_inventory_platform";
     public static final String PLATFORM_PASSWORD = "erp_inventory_platform_test_password";
 
@@ -61,8 +50,8 @@ public final class EmbeddedPostgresSupport {
                  Statement statement = connection.createStatement()) {
                 statement.execute("ALTER ROLE \"" + ownerUser + "\" WITH PASSWORD '" + OWNER_PASSWORD + "'");
             }
-            // Los roles de ejecucion y de plataforma los crea la migracion V3,
-            // que es la que concede los permisos sobre las tablas que crea.
+            // Application and platform roles are provisioned by Flyway migration scripts,
+            // which grant appropriate permissions on created tables.
         } catch (IOException | SQLException e) {
             throw new IllegalStateException("No se pudo arrancar PostgreSQL embebido para los tests", e);
         }

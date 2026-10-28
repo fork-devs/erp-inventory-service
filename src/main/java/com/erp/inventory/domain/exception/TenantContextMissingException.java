@@ -1,11 +1,11 @@
 package com.erp.inventory.domain.exception;
 
 /**
- * Se lanza cuando una operacion que requiere aislamiento por taller se
- * ejecuta sin contexto de taller establecido.
+ * Thrown when an operation requiring tenant isolation executes without
+ * an established tenant context.
  *
- * <p>El aislamiento no se relaja de forma silenciosa: una operacion sin
- * contexto no se ejecuta sin filtro, se rechaza.
+ * <p>Tenant isolation fails closed: operations without tenant context are rejected
+ * rather than executed without filtering.
  */
 public class TenantContextMissingException extends DomainException {
 
