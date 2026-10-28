@@ -10,6 +10,8 @@ import com.erp.inventory.infrastructure.persistence.rls.TenantContextHolder;
 import io.swagger.v3.oas.annotations.Hidden;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
@@ -21,6 +23,7 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.net.URI;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -41,24 +44,49 @@ public class GlobalRestExceptionHandler {
 
     private static final String TIPO_BASE = "https://erp-automotive.pe/errors/";
 
+    private final MessageSource messageSource;
+
+    public GlobalRestExceptionHandler() {
+        this(null);
+    }
+
+    public GlobalRestExceptionHandler(MessageSource messageSource) {
+        this.messageSource = messageSource;
+    }
+
+    private String getMessage(String code, String defaultMessage, Object... args) {
+        if (messageSource == null) {
+            return defaultMessage;
+        }
+        Locale locale = LocaleContextHolder.getLocale();
+        return messageSource.getMessage(code, args, defaultMessage, locale);
+    }
+
     @ExceptionHandler(TenantContextMissingException.class)
     public ProblemDetail handleTenantContextMissing(TenantContextMissingException ex, WebRequest request) {
-        return problema(ex.getCode(), HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+        String detail = getMessage("error.inventory.tenant-context-missing.detail", ex.getMessage());
+        return problema(ex.getCode(), HttpStatus.BAD_REQUEST, detail, request);
     }
 
     @ExceptionHandler(SkuAlreadyExistsException.class)
     public ProblemDetail handleSkuAlreadyExists(SkuAlreadyExistsException ex, WebRequest request) {
-        return problema(ex.getCode(), HttpStatus.CONFLICT, ex.getMessage(), request);
+        String detail = getMessage("error.inventory.sku-already-exists.detail", ex.getMessage());
+        return problema(ex.getCode(), HttpStatus.CONFLICT, detail, request);
     }
 
     @ExceptionHandler(InsufficientStockException.class)
     public ProblemDetail handleInsufficientStock(InsufficientStockException ex, WebRequest request) {
-        return problema(ex.getCode(), HttpStatus.CONFLICT, ex.getMessage(), request);
+        String detail = getMessage("error.inventory.insufficient-stock.detail", ex.getMessage());
+        return problema(ex.getCode(), HttpStatus.CONFLICT, detail, request);
     }
 
     @ExceptionHandler({SparePartNotFoundException.class, BranchNotFoundException.class})
     public ProblemDetail handleNotFound(DomainException ex, WebRequest request) {
-        return problema(ex.getCode(), HttpStatus.NOT_FOUND, ex.getMessage(), request);
+        String key = ex instanceof SparePartNotFoundException
+                ? "error.inventory.spare-part-not-found.detail"
+                : "error.inventory.branch-not-found.detail";
+        String detail = getMessage(key, ex.getMessage());
+        return problema(ex.getCode(), HttpStatus.NOT_FOUND, detail, request);
     }
 
     @ExceptionHandler(DomainException.class)
@@ -71,14 +99,16 @@ public class GlobalRestExceptionHandler {
      */
     @ExceptionHandler(AccessDeniedException.class)
     public ProblemDetail handleAccessDenied(AccessDeniedException ex, WebRequest request) {
-        return problema("INVENTORY_ACCESS_DENIED", HttpStatus.FORBIDDEN,
-                "El principal no tiene el rol que exige el endpoint", request);
+        String detail = getMessage("error.inventory.access-denied.detail",
+                "El principal no tiene el rol que exige el endpoint");
+        return problema("INVENTORY_ACCESS_DENIED", HttpStatus.FORBIDDEN, detail, request);
     }
 
     @ExceptionHandler(AuthenticationException.class)
     public ProblemDetail handleAuthentication(AuthenticationException ex, WebRequest request) {
-        return problema("INVENTORY_UNAUTHENTICATED", HttpStatus.UNAUTHORIZED,
-                "La peticion requiere un token de acceso verificado", request);
+        String detail = getMessage("error.inventory.unauthenticated.detail",
+                "La peticion requiere un token de acceso verificado");
+        return problema("INVENTORY_UNAUTHENTICATED", HttpStatus.UNAUTHORIZED, detail, request);
     }
 
     /**
@@ -87,8 +117,8 @@ public class GlobalRestExceptionHandler {
      */
     @ExceptionHandler(NoResourceFoundException.class)
     public ProblemDetail handleNoResource(NoResourceFoundException ex, WebRequest request) {
-        return problema("INVENTORY_NOT_FOUND", HttpStatus.NOT_FOUND,
-                "El recurso solicitado no existe", request);
+        String detail = getMessage("error.inventory.not-found.detail", "El recurso solicitado no existe");
+        return problema("INVENTORY_NOT_FOUND", HttpStatus.NOT_FOUND, detail, request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -96,8 +126,10 @@ public class GlobalRestExceptionHandler {
         String mensaje = ex.getBindingResult().getFieldErrors().stream()
                 .map(e -> e.getField() + ": " + e.getDefaultMessage())
                 .findFirst()
-                .orElse("Peticion no valida");
-        return problema("INVENTORY_VALIDATION_ERROR", HttpStatus.BAD_REQUEST, mensaje, request);
+                .orElse(getMessage("error.inventory.validation-error.detail", "Peticion no valida"));
+        ProblemDetail problem = problema("INVENTORY_VALIDATION_ERROR", HttpStatus.BAD_REQUEST, mensaje, request);
+        problem.setTitle(getMessage("error.inventory.validation-error.title", HttpStatus.BAD_REQUEST.getReasonPhrase()));
+        return problem;
     }
 
     /**
@@ -107,8 +139,8 @@ public class GlobalRestExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleGeneral(Exception ex, WebRequest request) {
         log.error("Error no previsto en {} {}", request.getDescription(false), ex.getMessage(), ex);
-        return problema("INVENTORY_INTERNAL_ERROR", HttpStatus.INTERNAL_SERVER_ERROR,
-                "Se ha producido un error interno", request);
+        String detail = getMessage("error.inventory.internal-error.detail", "Se ha producido un error interno");
+        return problema("INVENTORY_INTERNAL_ERROR", HttpStatus.INTERNAL_SERVER_ERROR, detail, request);
     }
 
     private ProblemDetail problema(String codigo, HttpStatus estado, String detalle, WebRequest request) {

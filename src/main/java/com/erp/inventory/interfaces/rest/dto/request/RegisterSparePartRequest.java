@@ -4,7 +4,10 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 
 public record RegisterSparePartRequest(
-        @NotBlank String sku,
-        @NotBlank String description,
-        @Min(0) int minStock
+        @NotBlank(message = "{validation.inventory.spare-part.sku.not-blank}")
+        String sku,
+        @NotBlank(message = "{validation.inventory.spare-part.description.not-blank}")
+        String description,
+        @Min(value = 0, message = "{validation.inventory.spare-part.min-stock.min}")
+        int minStock
 ) {}

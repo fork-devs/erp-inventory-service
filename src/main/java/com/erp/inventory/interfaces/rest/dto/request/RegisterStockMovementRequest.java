@@ -16,11 +16,16 @@ import java.util.UUID;
  * do not carry unit cost: their value is derived from the lots they consume.
  */
 public record RegisterStockMovementRequest(
-        @NotNull UUID sparePartId,
-        @NotNull UUID branchId,
-        @NotBlank String movementType,
-        @Min(1) int quantity,
-        @DecimalMin(value = "0.0", inclusive = true) BigDecimal unitCost,
+        @NotNull(message = "{validation.inventory.movement.spare-part-id.not-null}")
+        UUID sparePartId,
+        @NotNull(message = "{validation.inventory.movement.branch-id.not-null}")
+        UUID branchId,
+        @NotBlank(message = "{validation.inventory.movement.movement-type.not-blank}")
+        String movementType,
+        @Min(value = 1, message = "{validation.inventory.movement.quantity.min}")
+        int quantity,
+        @DecimalMin(value = "0.0", inclusive = true, message = "{validation.inventory.movement.unit-cost.min}")
+        BigDecimal unitCost,
         UUID referenceId,
         String idempotencyKey
 ) {
