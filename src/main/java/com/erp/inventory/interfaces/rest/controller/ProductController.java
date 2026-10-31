@@ -39,7 +39,7 @@ public class ProductController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Create product in branch inventory")
     public ResponseEntity<ProductResponse> create(@Valid @RequestBody CreateProductRequest request) {
         CreateProductCommand command = new CreateProductCommand(
@@ -57,7 +57,7 @@ public class ProductController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
     @Operation(summary = "List branch products with optional category and low stock filters")
     public ResponseEntity<List<ProductResponse>> list(
             @RequestParam UUID branchId,
@@ -68,7 +68,7 @@ public class ProductController {
     }
 
     @GetMapping("/branch/{branchId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
     @Operation(summary = "Get product catalog for a specific branch")
     public ResponseEntity<List<ProductResponse>> listByBranch(@PathVariable UUID branchId) {
         List<ProductResult> results = productUseCase.listByBranch(branchId, CurrentTenant.id(), null, null);
@@ -76,7 +76,7 @@ public class ProductController {
     }
 
     @GetMapping("/{productId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
     @Operation(summary = "Get product details with batches and stock")
     public ResponseEntity<ProductResponse> getById(@PathVariable UUID productId) {
         ProductResult result = productUseCase.getById(productId, CurrentTenant.id());
@@ -84,7 +84,7 @@ public class ProductController {
     }
 
     @PutMapping("/{productId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Update product details")
     public ResponseEntity<ProductResponse> update(
             @PathVariable UUID productId,
@@ -103,7 +103,7 @@ public class ProductController {
     }
 
     @PostMapping("/{productId}/batches")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Add stock batch to product")
     public ResponseEntity<ProductBatchResponse> addBatch(
             @PathVariable UUID productId,
@@ -121,7 +121,7 @@ public class ProductController {
     }
 
     @DeleteMapping("/{productId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Delete product (must have zero stock)")
     public ResponseEntity<Void> delete(@PathVariable UUID productId) {
         productUseCase.delete(productId, CurrentTenant.id());

@@ -29,7 +29,7 @@ public class SparePartController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Registrar repuesto en catálogo")
     public ResponseEntity<SparePartResponse> register(
             @Valid @RequestBody RegisterSparePartRequest request) {
@@ -39,7 +39,7 @@ public class SparePartController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR', 'MECANICO')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
     @Operation(summary = "Listar repuestos del taller")
     public ResponseEntity<List<SparePartResponse>> listAll() {
         return ResponseEntity.ok(sparePartUseCase.listAll(CurrentTenant.id()).stream()
@@ -47,7 +47,7 @@ public class SparePartController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR', 'MECANICO')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
     @Operation(summary = "Obtener repuesto por ID")
     public ResponseEntity<SparePartResponse> getById(
             @PathVariable UUID id) {
