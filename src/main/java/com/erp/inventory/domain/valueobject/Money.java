@@ -1,0 +1,69 @@
+package com.erp.inventory.domain.valueobject;
+
+import java.io.Serializable;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.Objects;
+
+public final class Money implements Serializable {
+    private static final int SCALE = 4;
+    private final BigDecimal amount;
+
+    public Money(BigDecimal amount) {
+        if (amount == null) {
+            throw new IllegalArgumentException("Amount cannot be null");
+        }
+        if (amount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Amount cannot be negative");
+        }
+        this.amount = amount.setScale(SCALE, RoundingMode.HALF_UP);
+    }
+
+    public static Money of(BigDecimal amount) {
+        return new Money(amount);
+    }
+
+    public static Money of(double amount) {
+        return new Money(BigDecimal.valueOf(amount));
+    }
+
+    public static Money of(long amount) {
+        return new Money(BigDecimal.valueOf(amount));
+    }
+
+    public static Money zero() {
+        return new Money(BigDecimal.ZERO);
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
+
+    public Money add(Money other) {
+        if (other == null) {
+            throw new IllegalArgumentException("Cannot add null Money");
+        }
+        return new Money(this.amount.add(other.amount));
+    }
+
+    public Money multiply(int factor) {
+        return new Money(this.amount.multiply(BigDecimal.valueOf(factor)));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Money money)) return false;
+        return Objects.equals(amount, money.amount);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(amount);
+    }
+
+    @Override
+    public String toString() {
+        return amount.toString();
+    }
+}
