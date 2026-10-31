@@ -110,4 +110,23 @@ class InventorySecurityTest extends AbstractPostgresIntegrationTest {
         mockMvc.perform(get("/api/v1/inventory/spare-parts").header("Authorization", "Bearer " + adulterado))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    @DisplayName("Rol TECHNICIAN puede consultar productos pero no crearlos")
+    void rolTechnicianPuedeConsultarProductosPeroNoCrearlos() throws Exception {
+        UUID taller = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+        String token = TestJwksServer.signToken(taller, List.of("TECHNICIAN"));
+
+        mockMvc.perform(get("/api/v1/inventory/products")
+                        .header("Authorization", "Bearer " + token)
+                        .param("branchId", branchId.toString()))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/inventory/products")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"branchId\":\"" + branchId + "\",\"category\":\"Filters\",\"name\":\"Filter\",\"sku\":\"F-1\",\"salePrice\":10,\"minimumStock\":1}"))
+                .andExpect(status().isForbidden());
+    }
 }

@@ -89,6 +89,16 @@ public class GlobalRestExceptionHandler {
         return problema(ex.getCode(), HttpStatus.NOT_FOUND, detail, request);
     }
 
+    @ExceptionHandler(com.erp.inventory.domain.exception.ProductNotFoundException.class)
+    public ProblemDetail handleProductNotFound(com.erp.inventory.domain.exception.ProductNotFoundException ex, WebRequest request) {
+        return problema(ex.getCode(), HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(com.erp.inventory.domain.exception.ActiveStockConflictException.class)
+    public ProblemDetail handleActiveStockConflict(com.erp.inventory.domain.exception.ActiveStockConflictException ex, WebRequest request) {
+        return problema(ex.getCode(), HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(DomainException.class)
     public ProblemDetail handleDomain(DomainException ex, WebRequest request) {
         return problema(ex.getCode(), HttpStatus.BAD_REQUEST, ex.getMessage(), request);
