@@ -33,7 +33,7 @@ public class StockController {
     }
 
     @PostMapping("/movements")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Registrar movimiento manual de stock (IN / OUT)")
     public ResponseEntity<StockMovementResponse> registerMovement(
             @Valid @RequestBody RegisterStockMovementRequest request) {
@@ -45,7 +45,7 @@ public class StockController {
     }
 
     @PostMapping("/reserve")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Reservar stock para orden de trabajo (Saga)", description = "Operación idempotente mediante idempotencyKey")
     public ResponseEntity<StockMovementResponse> reserve(
             @Valid @RequestBody ReserveStockRequest request) {
@@ -56,7 +56,7 @@ public class StockController {
     }
 
     @PostMapping("/commit")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Confirmar reserva de stock", description = "Consume el stock reservado de la orden de trabajo. Operacion idempotente")
     public ResponseEntity<StockMovementResponse> commit(
             @Valid @RequestBody ReserveStockRequest request) {
@@ -67,7 +67,7 @@ public class StockController {
     }
 
     @PostMapping("/release")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
     @Operation(summary = "Liberar reserva de stock (Rollback Saga)", description = "Operación idempotente mediante idempotencyKey")
     public ResponseEntity<StockMovementResponse> release(
             @Valid @RequestBody ReleaseStockRequest request) {
@@ -78,7 +78,7 @@ public class StockController {
     }
 
     @GetMapping("/balance/{sparePartId}/branch/{branchId}")
-    @PreAuthorize("hasAnyRole('SUPERADMIN', 'ADMIN_TALLER', 'ASESOR', 'MECANICO')")
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR', 'TECHNICIAN', 'MECANICO')")
     @Operation(summary = "Consultar saldo y stock disponible por sucursal")
     public ResponseEntity<StockBalanceResponse> getBalance(
             @PathVariable UUID sparePartId,

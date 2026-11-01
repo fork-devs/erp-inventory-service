@@ -4,11 +4,11 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
- * Saldo de un repuesto en una sucursal.
+ * Stock balance for a spare part at a branch.
  *
- * <p>El valor viene de los LOTES que quedan, no de la suma de los
- * movimientos: el saldo dice cuantas unidades hay, y el valor dice cuanto
- * valen.
+ * <p>The total valuation is derived from the remaining LOTS, not from summing
+ * movements: the balance indicates how many units are available, and the valuation
+ * indicates their total monetary value.
  */
 public record StockBalanceResult(
         UUID sparePartId,

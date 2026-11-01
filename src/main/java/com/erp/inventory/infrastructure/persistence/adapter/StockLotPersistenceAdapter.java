@@ -13,10 +13,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Adaptador de los lotes de stock.
+ * Persistence adapter for stock lots.
  *
- * <p>No declara demarcacion propia: se une a la transaccion que abre la
- * capa de aplicacion, y el bloqueo de los lotes vive dentro de ella.
+ * <p>Does not declare its own transaction boundary: it participates in the transaction
+ * initiated by the application layer, ensuring pessimistic locks live inside that transaction.
  */
 @Component
 public class StockLotPersistenceAdapter implements StockLotRepositoryPort {

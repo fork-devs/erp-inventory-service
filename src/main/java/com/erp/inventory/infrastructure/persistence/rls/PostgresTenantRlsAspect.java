@@ -13,16 +13,14 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.util.UUID;
 
 /**
- * Establece el contexto de taller en la sesion de base de datos para que la
- * politica de Row-Level Security pueda filtrar las filas.
+ * Sets the tenant context on the PostgreSQL session so that Row-Level Security (RLS)
+ * policies can isolate rows per workshop tenant.
  *
- * <p>El aislamiento falla cerrado: si no hay transaccion activa, el
- * {@code SET LOCAL} no tendria efecto y la consulta se ejecutaria SIN filtro,
- * de modo que la operacion se rechaza en lugar de ejecutarse sin aislamiento.
+ * <p>Isolation fails closed: if no active transaction exists, {@code SET LOCAL} would have
+ * no effect and queries would execute unfiltered, so the operation is rejected explicitly.
  *
- * <p>El contexto lo fija el PRINCIPAL autenticado, nunca la fila que se opera:
- * si lo fijase la fila, la comprobacion de la politica seria siempre
- * satisfactoria y el aislamiento no aislaria nada.
+ * <p>The tenant context is determined strictly by the authenticated principal, never by
+ * the target entity row, guaranteeing secure tenant boundary enforcement.
  */
 @Aspect
 @Component
@@ -37,9 +35,8 @@ public class PostgresTenantRlsAspect {
     }
 
     /**
-     * Toda operacion de persistencia debe correr dentro de una transaccion:
-     * fuera de ella, el contexto de taller no se puede establecer y la
-     * politica de aislamiento no seria aplicable.
+     * Enforces that every persistence operation executes within an active transaction:
+     * outside a transaction boundary, session tenant context cannot be reliably scoped.
      */
     @Before("execution(* com.erp.inventory.infrastructure.persistence.adapter..*(..))")
     public void requireActiveTransaction() {
@@ -51,17 +48,18 @@ public class PostgresTenantRlsAspect {
     }
 
     /**
-     * Para las tablas que pertenecen a un taller, el contexto de taller es
-     * obligatorio.
+     * Sets the local tenant configuration variable for tenant-scoped repositories.
      *
-     * <p>El valor se interpola en la sentencia porque {@code SET LOCAL} no
-     * admite parametros preparados. El valor es un UUID ya validado, de modo
-     * que no introduce una via de inyeccion.
+     * <p>The value is interpolated into the statement because PostgreSQL's {@code SET LOCAL}
+     * does not support parameterized query placeholders. The tenant identifier is a validated UUID,
+     * preventing SQL injection vectors.
      */
     @Before("execution(* com.erp.inventory.infrastructure.persistence.adapter.BranchPersistenceAdapter.*(..))"
             + " || execution(* com.erp.inventory.infrastructure.persistence.adapter.SparePartPersistenceAdapter.*(..))"
             + " || execution(* com.erp.inventory.infrastructure.persistence.adapter.StockMovementPersistenceAdapter.*(..))"
-            + " || execution(* com.erp.inventory.infrastructure.persistence.adapter.StockLotPersistenceAdapter.*(..))")
+            + " || execution(* com.erp.inventory.infrastructure.persistence.adapter.StockLotPersistenceAdapter.*(..))"
+            + " || execution(* com.erp.inventory.infrastructure.persistence.adapter.ProductPersistenceAdapter.*(..))"
+            + " || execution(* com.erp.inventory.infrastructure.persistence.adapter.ProductBatchPersistenceAdapter.*(..))")
     public void applyTenantContext() {
         UUID tenantId = TenantContextHolder.getTenantId();
         if (tenantId == null) {

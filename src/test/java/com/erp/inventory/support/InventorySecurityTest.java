@@ -17,15 +17,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * La API exige un token verificado, y el taller lo decide el token.
+ * Integration tests verifying authentication and authorization perimeter enforcement.
  *
- * <p>El servicio publicaba el comodin {@code /api/v1/**} en permitAll y leia
- * el taller de la cabecera {@code X-Tenant-ID}: cualquiera que alcanzara el
- * servicio podia registrar movimientos, reservar stock y leer saldos de
- * cualquier taller, sin token.
- *
- * <p>Ver docs/doc-estado-implementacion.md, hallazgos P0 5.1, P0 5.2, P0 5.4 y
- * P1 6.19.
+ * <p>Endpoints require a valid JWT token, with tenant context derived exclusively
+ * from token claims rather than unauthenticated request headers.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -114,5 +109,24 @@ class InventorySecurityTest extends AbstractPostgresIntegrationTest {
 
         mockMvc.perform(get("/api/v1/inventory/spare-parts").header("Authorization", "Bearer " + adulterado))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Rol TECHNICIAN puede consultar productos pero no crearlos")
+    void rolTechnicianPuedeConsultarProductosPeroNoCrearlos() throws Exception {
+        UUID taller = UUID.randomUUID();
+        UUID branchId = UUID.randomUUID();
+        String token = TestJwksServer.signToken(taller, List.of("TECHNICIAN"));
+
+        mockMvc.perform(get("/api/v1/inventory/products")
+                        .header("Authorization", "Bearer " + token)
+                        .param("branchId", branchId.toString()))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/inventory/products")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"branchId\":\"" + branchId + "\",\"category\":\"Filters\",\"name\":\"Filter\",\"sku\":\"F-1\",\"salePrice\":10,\"minimumStock\":1}"))
+                .andExpect(status().isForbidden());
     }
 }

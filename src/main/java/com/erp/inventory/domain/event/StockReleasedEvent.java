@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Evento de stock: el taller libero una reserva.
+ * Stock domain event: workshop released a stock reservation.
  */
 public class StockReleasedEvent implements DomainEvent {
 

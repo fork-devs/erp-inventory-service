@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
- * Saldo de un repuesto en una sucursal, con su valor.
+ * Response DTO for the stock balance and valuation of a spare part at a branch.
  */
 public record StockBalanceResponse(
         UUID sparePartId,

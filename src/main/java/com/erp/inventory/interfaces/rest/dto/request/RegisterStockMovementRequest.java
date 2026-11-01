@@ -9,18 +9,23 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
- * Alta de un movimiento manual de stock.
+ * Request DTO to register a manual stock movement.
  *
- * <p>La ENTRADA ({@code IN}) lleva el coste unitario real con el que se
- * compro: es el que abre el lote y el que valora el stock. Las demas
- * operaciones no lo llevan: su valor sale de los lotes que consumen.
+ * <p>An incoming movement ({@code IN}) carries the actual unit cost at which it
+ * was purchased: this opens the lot and values the stock. Other operations
+ * do not carry unit cost: their value is derived from the lots they consume.
  */
 public record RegisterStockMovementRequest(
-        @NotNull UUID sparePartId,
-        @NotNull UUID branchId,
-        @NotBlank String movementType,
-        @Min(1) int quantity,
-        @DecimalMin(value = "0.0", inclusive = true) BigDecimal unitCost,
+        @NotNull(message = "{validation.inventory.movement.spare-part-id.not-null}")
+        UUID sparePartId,
+        @NotNull(message = "{validation.inventory.movement.branch-id.not-null}")
+        UUID branchId,
+        @NotBlank(message = "{validation.inventory.movement.movement-type.not-blank}")
+        String movementType,
+        @Min(value = 1, message = "{validation.inventory.movement.quantity.min}")
+        int quantity,
+        @DecimalMin(value = "0.0", inclusive = true, message = "{validation.inventory.movement.unit-cost.min}")
+        BigDecimal unitCost,
         UUID referenceId,
         String idempotencyKey
 ) {

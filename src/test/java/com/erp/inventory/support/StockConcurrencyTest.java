@@ -32,12 +32,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Las reglas de concurrencia se prueban con HILOS DE VERDAD.
+ * Multi-threaded concurrency tests verifying idempotency and race condition prevention.
  *
- * <p>Una prueba secuencial no demuestra nada: el defecto que estas reglas
- * cubren —dos peticiones con la misma clave registrando dos movimientos, y
- * dos reservas simultaneas sobre-reservando— solo aparece cuando las dos
- * peticiones se pisan de verdad.
+ * <p>Executes parallel threads to verify that concurrent requests with identical idempotency keys
+ * register only one movement, and simultaneous reservations cannot over-reserve available stock.
  */
 @SpringBootTest
 class StockConcurrencyTest extends AbstractPostgresIntegrationTest {
@@ -95,8 +93,7 @@ class StockConcurrencyTest extends AbstractPostgresIntegrationTest {
                     exitos.incrementAndGet();
                     ids.add(resultado.id().toString());
                 } catch (Exception e) {
-                    // Una de las dos puede fallar: lo que NO puede pasar es que
-                    // las dos registren su movimiento.
+                    // One of the concurrent requests may fail; both must not register distinct movements.
                 } finally {
                     TenantContextHolder.clear();
                 }
@@ -136,7 +133,7 @@ class StockConcurrencyTest extends AbstractPostgresIntegrationTest {
                 } catch (InsufficientStockException e) {
                     rechazadas.incrementAndGet();
                 } catch (Exception e) {
-                    // Cualquier otro fallo se considera un rechazo.
+                    // Any other failure is treated as a rejection.
                     rechazadas.incrementAndGet();
                 } finally {
                     TenantContextHolder.clear();

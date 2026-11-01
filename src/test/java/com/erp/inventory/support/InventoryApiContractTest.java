@@ -26,14 +26,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * El contrato de la API.
+ * Contract tests verifying REST API endpoint routes, request validation, and ProblemDetail structures.
  *
- * <p>Los endpoints se publican bajo el prefijo que el gateway reenvia SIN
- * quitarlo: servirlos fuera de ese prefijo los hacia inalcanzables, que es lo
- * que pasaba antes.
- *
- * <p>Los errores se comprueban con su codigo estable y con el taller, para
- * que el contrato del cliente quede verificado y no solo el estado.
+ * <p>Endpoints are verified with gateway route prefixes, machine-readable error codes,
+ * and tenant context propagation.
  */
 @SpringBootTest
 @AutoConfigureMockMvc

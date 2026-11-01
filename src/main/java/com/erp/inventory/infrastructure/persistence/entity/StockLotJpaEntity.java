@@ -7,7 +7,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Lote de stock: las unidades que entraron juntas, con su coste real.
+ * JPA entity representing a stock lot with its units and unit cost.
  */
 @Entity
 @Table(name = "stock_lots")

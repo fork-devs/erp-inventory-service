@@ -15,8 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * El lote es la unidad de coste: se abre con una entrada, se consume por
- * orden de llegada y su valor es el de las unidades que quedan.
+ * Unit tests verifying stock lot costing and FIFO allocation behavior.
  */
 class StockLotTest {
 

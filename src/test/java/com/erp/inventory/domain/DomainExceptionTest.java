@@ -13,10 +13,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Los errores del dominio llevan un codigo estable.
+ * Unit tests verifying that domain exceptions maintain stable error codes.
  *
- * <p>El mensaje se puede reescribir; el codigo no cambia sin que sea un
- * cambio incompatible. Es lo que consume el cliente.
+ * <p>Error codes constitute the client API contract: exception messages may vary,
+ * but error codes must remain stable across versions.
  */
 class DomainExceptionTest {
 

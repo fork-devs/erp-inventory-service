@@ -7,12 +7,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Publicador de los eventos de stock.
+ * Event publisher adapter for stock domain events.
  *
- * <p>Hoy registra el evento: <strong>Kafka todavia no existe</strong> en la
- * plataforma. Lo que importa es que el cambio de stock y su evento se
- * confirman juntos en la base de datos, y que el relay los publique despues:
- * cuando el bus exista, esta clase cambia y la bandeja no.
+ * <p>Currently logs dispatched events while Kafka integration is pending.
+ * The outbox pattern guarantees that the stock change and its outbox record commit atomically
+ * in PostgreSQL, allowing this adapter to be swapped with a real message broker adapter
+ * without modifying domain logic.
  */
 @Component
 public class LogEventPublisherAdapter implements EventPublisherPort {
@@ -23,6 +23,6 @@ public class LogEventPublisherAdapter implements EventPublisherPort {
     public void publish(StockOutboxMessage message) {
         log.info("[OUTBOX-RELAY] Despachando evento de dominio '{}' para aggregateId='{}': {}",
                 message.getEventType(), message.getAggregateId(), message.getPayload());
-        // Aqui se conectara el productor de Kafka cuando el broker exista.
+        // A Kafka or message broker producer will be integrated here when configured.
     }
 }

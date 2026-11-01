@@ -14,11 +14,10 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Respuesta a una peticion sin principal verificado: <strong>401 Unauthorized</strong>.
+ * Authentication entry point returning <strong>401 Unauthorized</strong> for unauthenticated requests.
  *
- * <p>Sin este punto de entrada, Spring Security responde 403 a las peticiones
- * anonimas, que confunde al cliente: un 403 dice "no tienes permiso", cuando
- * lo que ocurre es "no te has identificado".
+ * <p>Without this entry point, Spring Security defaults to 403 Forbidden for anonymous requests,
+ * confusing clients by mischaracterizing unauthenticated access as unauthorized access.
  */
 @Component
 public class UnauthorizedEntryPoint implements AuthenticationEntryPoint {

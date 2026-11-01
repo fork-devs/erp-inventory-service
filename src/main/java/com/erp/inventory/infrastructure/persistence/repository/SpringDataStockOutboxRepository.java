@@ -16,11 +16,10 @@ import java.util.UUID;
 public interface SpringDataStockOutboxRepository extends JpaRepository<StockOutboxJpaEntity, UUID> {
 
     /**
-     * Mensajes pendientes cuya proxima publicacion ya toca.
+     * Retrieves pending messages whose scheduled retry timestamp has arrived.
      *
-     * <p>La reclamacion es EXCLUSIVA: {@code FOR UPDATE SKIP LOCKED} hace
-     * que dos instancias del relay obtengan conjuntos disjuntos, de modo que
-     * ninguna publique dos veces el mismo mensaje.
+     * <p>Uses {@code FOR UPDATE SKIP LOCKED} to ensure exclusive claiming across concurrent
+     * relay instances, preventing duplicate processing of the same message.
      */
     @Query(value = "SELECT * FROM stock_outbox "
             + "WHERE status = 'PENDING' AND next_attempt_at <= :now "

@@ -3,14 +3,13 @@ package com.erp.inventory.infrastructure.persistence.rls;
 import java.util.UUID;
 
 /**
- * Contexto de taller de la peticion en curso.
+ * Thread-local holder for the active request's workshop tenant context.
  *
- * <p>Solo se establece desde el principal autenticado, y se limpia al terminar
- * la peticion. El taller lo decide el token verificado: la cabecera
- * {@code X-Tenant-ID} es una pista que se contrasta con el, nunca una
- * autoridad.
+ * <p>Populated strictly from the authenticated principal and cleared upon request completion.
+ * The tenant context is decided by the verified token claim: the {@code X-Tenant-ID} header
+ * is merely cross-checked against it, never treated as authoritative.
  *
- * <p>No existe ningun mecanismo para eludir el aislamiento.
+ * <p>No bypass mechanisms exist to circumvent tenant isolation.
  */
 public final class TenantContextHolder {
 

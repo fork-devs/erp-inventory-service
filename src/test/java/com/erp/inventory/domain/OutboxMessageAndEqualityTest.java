@@ -25,11 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * El mensaje de la bandeja de salida y el contrato de igualdad de los value
- * objects.
- *
- * <p>La igualdad importa: el mensaje se guarda y se recupera de la base de
- * datos, y los identificadores se comparan en las operaciones de negocio.
+ * Tests verifying the OutboxMessage lifecycle and value object equality contracts.
  */
 class OutboxMessageAndEqualityTest {
 
@@ -112,8 +108,7 @@ class OutboxMessageAndEqualityTest {
         StockOutboxMessage mensaje = StockOutboxMessage.of(UUID.randomUUID(), UUID.randomUUID(),
                 UUID.randomUUID(), "StockReserved", "{}");
 
-        // La espera crece con el numero de intentos: el primer reintento
-        // espera 5 segundos y el segundo, 30.
+        // Retry delay increases with attempt count: first retry waits 5s, second waits 30s.
         Duration primera = mensaje.nextDelay(Duration.ofHours(24));
         mensaje.recordFailure("fallo", 7, Duration.ofHours(24));
         mensaje.recordFailure("fallo", 7, Duration.ofHours(24));

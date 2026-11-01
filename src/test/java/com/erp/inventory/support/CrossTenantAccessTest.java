@@ -27,14 +27,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Aislamiento entre talleres.
+ * Integration tests verifying multi-tenant isolation across workshops.
  *
- * <p>El atacante es el ADMIN_TALLER del taller A y la victima es el taller B.
- * Los vectores: leer, escribir, reservar y confirmar.
- *
- * <p>El aislamiento no depende de que cada consulta recuerde filtrar por
- * taller: lo impone la politica de Row-Level Security, y el contexto lo fija el
- * principal autenticado.
+ * <p>Isolation is enforced by PostgreSQL Row-Level Security policies with session context
+ * established from the authenticated principal.
  */
 @SpringBootTest
 class CrossTenantAccessTest extends AbstractPostgresIntegrationTest {
@@ -82,13 +78,13 @@ class CrossTenantAccessTest extends AbstractPostgresIntegrationTest {
         UUID repuesto = crearRepuesto(tallerB);
         UUID sucursal = crearSucursal(tallerB);
 
-        // El taller B tiene stock de ese repuesto.
+        // Workshop B has stock for this spare part.
         TenantContextHolder.setTenantId(tallerB);
         stockUseCase.registerMovement(new RegisterStockMovementCommand(tallerB, repuesto, sucursal,
                 "IN", 10, new BigDecimal("25.00"), null, "entrada-" + UUID.randomUUID()));
         TenantContextHolder.clear();
 
-        // El taller A no ve ni una unidad: la politica filtra las filas.
+        // Workshop A sees zero units: RLS policy filters out rows.
         TenantContextHolder.setTenantId(tallerA);
         var saldo = stockUseCase.getBalance(repuesto, sucursal, tallerA);
 
