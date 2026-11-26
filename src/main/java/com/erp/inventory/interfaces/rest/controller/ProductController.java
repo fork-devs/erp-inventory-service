@@ -7,6 +7,10 @@ import com.erp.inventory.application.dto.result.ProductBatchResult;
 import com.erp.inventory.application.dto.result.ProductResult;
 import com.erp.inventory.application.usecase.ProductBatchUseCase;
 import com.erp.inventory.application.usecase.ProductUseCase;
+import com.erp.inventory.domain.exception.ProductNotFoundException;
+import com.erp.inventory.infrastructure.adapter.external.MediaUploadClient;
+import com.erp.inventory.infrastructure.persistence.entity.ProductJpaEntity;
+import com.erp.inventory.infrastructure.persistence.repository.SpringDataProductRepository;
 import com.erp.inventory.interfaces.rest.dto.request.AddProductBatchRequest;
 import com.erp.inventory.interfaces.rest.dto.request.CreateProductRequest;
 import com.erp.inventory.interfaces.rest.dto.request.UpdateProductRequest;
@@ -16,10 +20,14 @@ import com.erp.inventory.interfaces.rest.support.CurrentTenant;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -32,6 +40,12 @@ public class ProductController {
 
     private final ProductUseCase productUseCase;
     private final ProductBatchUseCase productBatchUseCase;
+
+    @Autowired(required = false)
+    private MediaUploadClient mediaUploadClient;
+
+    @Autowired(required = false)
+    private SpringDataProductRepository productRepository;
 
     public ProductController(ProductUseCase productUseCase, ProductBatchUseCase productBatchUseCase) {
         this.productUseCase = productUseCase;
@@ -118,6 +132,31 @@ public class ProductController {
         );
         ProductBatchResult result = productBatchUseCase.addBatch(command);
         return ResponseEntity.status(HttpStatus.CREATED).body(toBatchResponse(result));
+    }
+
+    @PutMapping(value = "/{productId}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('SUPERADMIN', 'WORKSHOP_ADMIN', 'ADMIN_TALLER', 'SERVICE_ADVISOR', 'ASESOR')")
+    @Transactional
+    @Operation(summary = "Upload product image to Cloudflare R2")
+    public ResponseEntity<ProductResponse> uploadImage(
+            @PathVariable UUID productId,
+            @RequestParam("file") MultipartFile file) {
+        if (mediaUploadClient == null || productRepository == null) {
+            throw new IllegalStateException("Media upload dependencies are not configured");
+        }
+        ProductJpaEntity entity = productRepository.findById(productId)
+                .orElseThrow(() -> new ProductNotFoundException(productId));
+        MediaUploadClient.UploadedMedia uploaded = mediaUploadClient.upload(file, "products/" + productId);
+        entity.setImageUrl(uploaded.url());
+        entity.setUpdatedAt(java.time.Instant.now());
+        productRepository.save(entity);
+        ProductResult result = productUseCase.getById(productId, CurrentTenant.id());
+        ProductResponse base = toResponse(result);
+        return ResponseEntity.ok(new ProductResponse(
+                base.id(), base.branchId(), base.category(), base.name(), base.sku(),
+                base.description(), base.salePrice(), base.minimumStock(), base.currentStock(),
+                base.lowStockAlert(), base.batches(), entity.getImageUrl()
+        ));
     }
 
     @DeleteMapping("/{productId}")
